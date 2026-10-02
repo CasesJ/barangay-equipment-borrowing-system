@@ -1,0 +1,128 @@
+"""Integration tests for application routes, endpoints, and role guards."""
+import pytest
+from app import create_app
+from config import Config
+
+
+class TestConfig(Config):
+    TESTING = True
+    SECRET_KEY = "test-secret-key"
+
+
+@pytest.fixture
+def client():
+    app = create_app(TestConfig)
+    return app.test_client()
+
+
+def test_public_pages_accessible(client):
+    """Public pages should respond successfully."""
+    # Root / login page
+    resp = client.get("/")
+    assert resp.status_code == 200
+
+    # Signup page
+    resp = client.get("/signup.html")
+    assert resp.status_code == 200
+
+
+def test_admin_routes_redirect_unauthenticated(client):
+    """Admin page routes should redirect unauthenticated requests to login."""
+    protected_pages = [
+        "/dashboard",
+        "/equipment",
+        "/borrowers",
+        "/borrowings",
+        "/returns",
+        "/reports",
+        "/audit-logs",
+        "/admin/borrowing-requests",
+    ]
+    for path in protected_pages:
+        resp = client.get(path)
+        assert resp.status_code == 302
+        assert "/login.html" in resp.headers["Location"]
+
+
+def test_admin_apis_require_auth(client):
+    """Admin API routes should return 401 Unauthorized for unauthenticated requests."""
+    admin_apis = [
+        "/api/equipment",
+        "/api/borrowers",
+        "/api/borrowable-equipment",
+        "/api/returnable-borrowings",
+        "/api/reports",
+        "/api/audit-logs",
+        "/api/admin/borrowing-requests",
+    ]
+    for path in admin_apis:
+        resp = client.get(path)
+        assert resp.status_code == 401
+        data = resp.get_json()
+        assert data == {"error": "Please log in first."}
+
+
+def test_staff_routes_redirect_unauthenticated(client):
+    """Staff page routes should redirect unauthenticated requests to login."""
+    staff_pages = [
+        "/staff-dashboard",
+        "/staff/equipment",
+        "/staff/requests",
+        "/staff/borrowed-items",
+        "/staff/profile",
+    ]
+    for path in staff_pages:
+        resp = client.get(path)
+        assert resp.status_code == 302
+        assert "/login.html" in resp.headers["Location"]
+
+
+def test_staff_apis_require_auth(client):
+    """Staff API routes should return 403 for unauthenticated or non-staff users."""
+    staff_apis = [
+        "/api/staff/equipment",
+        "/api/staff/requests",
+        "/api/staff/borrowed-items",
+    ]
+    for path in staff_apis:
+        resp = client.get(path)
+        assert resp.status_code == 403
+
+
+def test_admin_forbidden_from_staff_apis(client):
+    """Admin users attempting to access Staff-specific APIs should receive 403 Forbidden."""
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["role"] = "Admin"
+        sess["full_name"] = "Admin User"
+
+    resp = client.get("/api/staff/requests")
+    assert resp.status_code == 403
+    assert "only Staff users" in resp.get_json()["error"]
+
+
+def test_staff_forbidden_from_admin_apis(client):
+    """Staff users attempting to access Admin-specific APIs should receive 403 Forbidden."""
+    with client.session_transaction() as sess:
+        sess["user_id"] = 2
+        sess["role"] = "Staff"
+        sess["full_name"] = "Staff User"
+
+    resp = client.get("/api/equipment")
+    assert resp.status_code == 403
+    assert "only Admin users" in resp.get_json()["error"]
+
+
+def test_logout(client):
+    """Logout endpoint should clear session and redirect to login."""
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["role"] = "Admin"
+
+    resp = client.get("/logout")
+    assert resp.status_code == 302
+    assert "/login.html" in resp.headers["Location"]
+
+    # Verify session is cleared
+    with client.session_transaction() as sess:
+        assert "user_id" not in sess

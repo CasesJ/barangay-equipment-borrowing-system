@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Browse Equipment</title>
+  <link rel="stylesheet" href="/static/staff.css">
+  <style>
+    /* Browse Equipment Custom Styles */
+    :root {
+      --primary-blue: #1674c9;
+      --primary-blue-hover: #125ea3;
+      --primary-blue-light: #edf5fc;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --text-main: #172b42;
+      --text-muted: #64748b;
+      --success-green: #168650;
+      --success-bg: #eaf7f0;
+      --shadow-sm: 0 1px 3px rgba(18, 55, 91, 0.05);
+      --shadow-md: 0 4px 14px rgba(18, 55, 91, 0.07);
+      --shadow-hover: 0 10px 25px rgba(18, 55, 91, 0.12);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    /* Top bar breadcrumb link */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 14px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+    }
+    .back-link:hover {
+      background: #f8fafc;
+      border-color: var(--primary-blue);
+      color: var(--primary-blue);
+      box-shadow: 0 2px 6px rgba(22, 116, 201, 0.15);
+    }
+    .back-link svg {
+      flex-shrink: 0;
+    }
+
+    /* Notification Banner */
+    .notice-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-radius: var(--radius-md);
+      margin-bottom: 22px;
+      font-size: 13.5px;
+      font-weight: 500;
+      line-height: 1.45;
+      box-shadow: var(--shadow-sm);
+      animation: fadeIn 0.3s ease;
+    }
+    .notice-banner.notice-success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+    .notice-banner.notice-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+    .notice-icon {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Toolbar / Search & Filter Section */
+    .toolbar-panel {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-bottom: 22px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 280px;
+      flex-wrap: wrap;
+    }
+    .search-box-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 240px;
+    }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      height: 40px;
+      padding: 0 12px 0 38px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      background: #ffffff;
+      color: var(--text-main);
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 3px rgba(22, 116, 201, 0.15);
+    }
+    .category-select {
+      height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      background: #ffffff;
+      color: var(--text-main);
+      cursor: pointer;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+      min-width: 160px;
+    }
+    .category-select:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 3px rgba(22, 116, 201, 0.15);
+    }
+    .catalog-status {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .catalog-status span {
+      color: var(--primary-blue);
+      font-weight: 700;
+    }
+
+    /* Equipment Grid & Cards */
+    .equipment-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 22px;
+      margin-top: 4px;
+    }
+    .equipment-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .equipment-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+      border-color: #cbd5e1;
+    }
+    .equipment-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary-blue), #38bdf8);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .equipment-card:hover::before {
+      opacity: 1;
+    }
+
+    /* Card Top: Tag + Stock Status */
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .category-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #334155;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      padding: 3px 9px;
+      border-radius: 999px;
+    }
+    .stock-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--success-bg);
+      color: var(--success-green);
+      border: 1px solid #bbf7d0;
+    }
+    .stock-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #16a34a;
+      display: inline-block;
+    }
+
+    /* Card Center: Icon & Title */
+    .card-visual {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .equipment-icon-bubble {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--primary-blue-light);
+      color: var(--primary-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+    .equipment-card:hover .equipment-icon-bubble {
+      background: #e0effe;
+      transform: scale(1.05);
+    }
+    .equipment-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Card Stock Metric Box */
+    .stock-metric-box {
+      background: #f8fafc;
+      border: 1px solid #eef2f6;
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stock-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .stock-amount {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .stock-count {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1;
+    }
+    .stock-unit {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* Card Action Button */
+    .btn-borrow {
+      width: 100%;
+      height: 42px;
+      background: var(--primary-blue);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(22, 116, 201, 0.22);
+      text-decoration: none;
+    }
+    .btn-borrow:hover {
+      background: var(--primary-blue-hover);
+      box-shadow: 0 4px 14px rgba(22, 116, 201, 0.35);
+      transform: translateY(-1px);
+    }
+    .btn-borrow:active {
+      transform: translateY(0);
+      filter: brightness(0.96);
+    }
+
+    /* Empty / Loading State */
+    .empty-state {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      grid-column: 1 / -1;
+      box-shadow: var(--shadow-sm);
+    }
+    .empty-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: #f1f5f9;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .empty-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0 0 6px;
+    }
+    .empty-desc {
+      font-size: 13px;
+      margin: 0 0 16px;
+      color: var(--text-muted);
+    }
+    .btn-reset {
+      background: #f1f5f9;
+      color: var(--text-main);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-reset:hover {
+      background: #e2e8f0;
+    }
+
+    /* Request Form Panel */
+    .request-form-panel {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 10px 30px rgba(18, 55, 91, 0.08);
+      padding: 28px;
+      margin-top: 32px;
+      animation: slideDown 0.28s ease;
+      scroll-margin-top: 24px;
+    }
+    .form-header-bar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .form-header-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .form-header-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: var(--primary-blue-light);
+      color: var(--primary-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .form-header-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0 0 4px;
+    }
+    .form-header-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+    .btn-close-form {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.18s;
+      flex-shrink: 0;
+    }
+    .btn-close-form:hover {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      color: #b91c1c;
+    }
+
+    /* Selected Item Highlight Card */
+    .selected-summary-card {
+      background: linear-gradient(135deg, #f0f7ff 0%, #e0f0fe 100%);
+      border: 1px solid #bae6fd;
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .selected-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .selected-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #0369a1;
+    }
+    #name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #0c4a6e;
+      margin: 0;
+    }
+    #stock_hint {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0369a1;
+      background: #ffffffd6;
+      border: 1px solid #7dd3fc;
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+
+    /* Form Fields Grid */
+    .form-fields-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .req-star {
+      color: #e11d48;
+      margin-left: 2px;
+    }
+    .opt-tag {
+      font-size: 11.5px;
+      font-weight: normal;
+      color: var(--text-muted);
+    }
+    .field-input, .field-textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      color: var(--text-main);
+      font-size: 14px;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+    .field-input {
+      height: 42px;
+      padding: 0 12px;
+    }
+    .field-textarea {
+      padding: 10px 12px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+    }
+    .field-input:focus, .field-textarea:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 3px rgba(22, 116, 201, 0.16);
+    }
+    .input-hint {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Form Action Footer */
+    .form-actions-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+    .btn-secondary {
+      height: 42px;
+      padding: 0 20px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    .btn-submit {
+      height: 42px;
+      padding: 0 24px;
+      background: var(--primary-blue);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(22, 116, 201, 0.25);
+      transition: all 0.18s ease;
+    }
+    .btn-submit:hover {
+      background: var(--primary-blue-hover);
+      box-shadow: 0 4px 14px rgba(22, 116, 201, 0.35);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 900px) {
+      .equipment-grid {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+      }
+    }
+    @media (max-width: 650px) {
+      .toolbar-panel {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .filter-group {
+        flex-direction: column;
+        align-items: stretch;
+        min-width: 100%;
+      }
+      .category-select {
+        width: 100%;
+      }
+      .equipment-grid {
+        grid-template-columns: 1fr;
+      }
+      .form-fields-grid {
+        grid-template-columns: 1fr;
+      }
+      .form-actions-footer {
+        flex-direction: column-reverse;
+      }
+      .form-actions-footer button {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <h1 class="brand">Barangay Equipment<br>Borrowing System</h1>
+    <nav>
+      <a class="nav-link" href="/staff-dashboard">Dashboard</a>
+      <a class="nav-link active" href="/staff/equipment">Browse Equipment</a>
+      <a class="nav-link" href="/staff/requests">My Borrowing Requests</a>
+      <a class="nav-link" href="/staff/borrowed-items">My Borrowed Items</a>
+      <a class="nav-link" href="/staff/profile">Profile</a>
+      <a class="nav-link logout" href="/logout">Logout</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="top">
+      <div>
+        <h1>Browse Equipment</h1>
+        <p class="subtitle">Select available equipment and submit a borrowing request.</p>
+      </div>
+      <div class="user">
+        <a href="/staff-dashboard" class="back-link">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Dashboard
+        </a>
+      </div>
+    </div>
+
+    {% if request.args.get('message') %}
+      {% set msg = request.args.get('message') %}
+      {% set is_err = 'Unable' in msg or 'cannot' in msg or 'required' in msg or 'must' in msg or 'exists' in msg or 'not found' in msg or 'invalid' in msg or 'error' in msg|lower %}
+      <div class="notice-banner {{ 'notice-error' if is_err else 'notice-success' }}" role="status">
+        <div class="notice-icon">
+          {% if is_err %}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          {% else %}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          {% endif %}
+        </div>
+        <div>{{ msg }}</div>
+      </div>
+    {% endif %}
+
+    <!-- Filter & Search Toolbar -->
+    <section class="toolbar-panel">
+      <div class="filter-group">
+        <div class="search-box-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input id="search-input" class="search-input" type="search" placeholder="Search equipment by name or category..." oninput="filterItems()">
+        </div>
+        <select id="category-filter" class="category-select" onchange="filterItems()">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+      <div class="catalog-status">
+        Available Items: <span id="item-count">0</span>
+      </div>
+    </section>
+
+    <!-- Equipment Grid Catalog -->
+    <div id="items" class="equipment-grid">
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <div class="empty-title">Loading equipment…</div>
+        <p class="empty-desc">Fetching available items from barangay inventory.</p>
+      </div>
+    </div>
+
+    <!-- Request to Borrow Form Panel -->
+    <section id="form" class="request-form-panel" hidden>
+      <div class="form-header-bar">
+        <div class="form-header-title-wrap">
+          <div class="form-header-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </div>
+          <div>
+            <h2 class="form-header-title">Request to Borrow Equipment</h2>
+            <p class="form-header-subtitle">Fill out the borrowing request details below for administration review.</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-form" onclick="closeForm()" title="Close request form" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <form method="post" action="/staff/requests/create">
+        <input id="equipment_id" name="equipment_id" type="hidden">
+
+        <!-- Selected Item Banner -->
+        <div class="selected-summary-card">
+          <div class="selected-title-group">
+            <span class="selected-tag">Selected Equipment</span>
+            <p id="name">Equipment: Loading...</p>
+          </div>
+          <div id="stock_hint"></div>
+        </div>
+
+        <div class="form-fields-grid">
+          <!-- Quantity -->
+          <div class="form-group">
+            <label for="form-quantity" class="form-label">
+              <span>Quantity to Borrow <span class="req-star">*</span></span>
+            </label>
+            <input id="form-quantity" name="quantity" type="number" min="1" class="field-input" required placeholder="e.g. 2">
+            <span id="quantity_hint" class="input-hint"></span>
+          </div>
+
+          <!-- Empty spacer or placeholder on grid -->
+          <div class="form-group" style="visibility: hidden; display: none;"></div>
+
+          <!-- Date Needed -->
+          <div class="form-group">
+            <label for="form-date-needed" class="form-label">
+              <span>Date Needed <span class="req-star">*</span></span>
+            </label>
+            <input id="form-date-needed" name="date_needed" type="date" class="field-input" required>
+            <span class="input-hint">When you need this equipment</span>
+          </div>
+
+          <!-- Expected Return Date -->
+          <div class="form-group">
+            <label for="form-return-date" class="form-label">
+              <span>Expected Return Date <span class="req-star">*</span></span>
+            </label>
+            <input id="form-return-date" name="expected_return_date" type="date" class="field-input" required>
+            <span class="input-hint">When items will be returned to the barangay</span>
+          </div>
+
+          <!-- Purpose -->
+          <div class="form-group full-width">
+            <label for="form-purpose" class="form-label">
+              <span>Purpose of Borrowing <span class="req-star">*</span></span>
+            </label>
+            <textarea id="form-purpose" name="purpose_notes" class="field-textarea" rows="3" required placeholder="Specify purpose (e.g. Community assembly, health mission, event setup)..."></textarea>
+          </div>
+
+          <!-- Additional Notes -->
+          <div class="form-group full-width">
+            <label for="form-notes" class="form-label">
+              <span>Additional Notes <span class="opt-tag">(Optional)</span></span>
+            </label>
+            <textarea id="form-notes" name="additional_notes" class="field-textarea" rows="2" placeholder="Any specific requirements or pickup notes..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions-footer">
+          <button type="button" class="btn-secondary" onclick="closeForm()">Cancel</button>
+          <button type="submit" class="button btn-submit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Submit Request
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
+</div>
+
+<script>
+  let equipmentList = [];
+  const esc = x => {
+    let n = document.createElement('i');
+    n.textContent = x ?? '';
+    return n.innerHTML;
+  };
+
+  function getEquipmentIcon(cat, name) {
+    const term = ((cat || '') + ' ' + (name || '')).toLowerCase();
+    if (term.includes('chair') || term.includes('seat')) {
+      return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19v2M18 19v2M6 10h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5zM7 10V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5"/></svg>`;
+    }
+    if (term.includes('table') || term.includes('desk')) {
+      return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="4" rx="1"></rect><line x1="6" y1="10" x2="6" y2="20"></line><line x1="18" y1="10" x2="18" y2="20"></line><line x1="4" y1="14" x2="8" y2="14"></line><line x1="16" y1="14" x2="20" y2="14"></line></svg>`;
+    }
+    if (term.includes('sound') || term.includes('speaker') || term.includes('audio') || term.includes('mic')) {
+      return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><circle cx="12" cy="14" r="4"></circle><line x1="12" y1="6" x2="12.01" y2="6"></line></svg>`;
+    }
+    if (term.includes('tent') || term.includes('canopy') || term.includes('tarp')) {
+      return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 20 12 4 5 20h14z"></path><path d="M12 4v16"></path></svg>`;
+    }
+    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`;
+  }
+
+  function renderCards(itemsToDisplay) {
+    const container = document.getElementById('items');
+    const countEl = document.getElementById('item-count');
+    if (countEl) countEl.textContent = itemsToDisplay.length;
+
+    if (!itemsToDisplay.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </div>
+          <div class="empty-title">No equipment found</div>
+          <p class="empty-desc">Try changing your search term or category filter.</p>
+          <button type="button" class="btn-reset" onclick="resetFilters()">Clear Filters</button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = itemsToDisplay.map(x => `
+      <article class="equipment-card">
+        <div>
+          <div class="card-header">
+            <span class="category-badge">${esc(x.category || 'General')}</span>
+            <span class="stock-badge">
+              <span class="stock-dot"></span> In Stock
+            </span>
+          </div>
+          <div class="card-visual">
+            <div class="equipment-icon-bubble">
+              ${getEquipmentIcon(x.category, x.equipment_name)}
+            </div>
+            <h3 class="equipment-name" title="${esc(x.equipment_name)}">${esc(x.equipment_name)}</h3>
+          </div>
+        </div>
+
+        <div>
+          <div class="stock-metric-box">
+            <span class="stock-label">Available Quantity</span>
+            <div class="stock-amount">
+              <span class="stock-count">${x.available_stock}</span>
+              <span class="stock-unit">${esc(x.unit_type)}</span>
+            </div>
+          </div>
+          <button type="button" class="btn-borrow" onclick="openForm(${x.equipment_id},'${esc(x.equipment_name).replace(/'/g,'&#39;')}', ${x.available_stock}, '${esc(x.unit_type).replace(/'/g,'&#39;')}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            Request to Borrow
+          </button>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  function filterItems() {
+    const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
+    const cat = (document.getElementById('category-filter').value || '').trim().toLowerCase();
+
+    const filtered = equipmentList.filter(item => {
+      const matchName = !q || (item.equipment_name && item.equipment_name.toLowerCase().includes(q)) || (item.category && item.category.toLowerCase().includes(q));
+      const matchCat = !cat || (item.category && item.category.toLowerCase() === cat);
+      return matchName && matchCat;
+    });
+
+    renderCards(filtered);
+  }
+
+  function resetFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('category-filter').value = '';
+    filterItems();
+  }
+
+  function populateCategories(items) {
+    const catSelect = document.getElementById('category-filter');
+    if (!catSelect) return;
+    const categories = Array.from(new Set(items.map(i => i.category).filter(Boolean))).sort();
+    catSelect.innerHTML = '<option value="">All Categories</option>' + categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  }
+
+  async function load() {
+    try {
+      let r = await fetch('/api/staff/equipment');
+      let a = await r.json();
+      equipmentList = Array.isArray(a) ? a : [];
+      populateCategories(equipmentList);
+      renderCards(equipmentList);
+    } catch (err) {
+      document.getElementById('items').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-title">Unable to load equipment</div>
+          <p class="empty-desc">There was an issue connecting to the inventory database.</p>
+          <button type="button" class="btn-reset" onclick="load()">Try Again</button>
+        </div>
+      `;
+    }
+  }
+
+  function openForm(id, n, stock, unit) {
+    const formSection = document.getElementById('form');
+    const equipmentIdInput = document.getElementById('equipment_id');
+    const nameEl = document.getElementById('name');
+    const stockHint = document.getElementById('stock_hint');
+    const quantityInput = document.getElementById('form-quantity');
+    const quantityHint = document.getElementById('quantity_hint');
+    const dateNeededInput = document.getElementById('form-date-needed');
+    const returnDateInput = document.getElementById('form-return-date');
+
+    equipmentIdInput.value = id;
+    nameEl.textContent = 'Equipment: ' + n;
+
+    if (stock !== undefined && unit) {
+      stockHint.textContent = `${stock} ${unit} Available`;
+      quantityInput.max = stock;
+      quantityHint.textContent = `Up to ${stock} ${unit} available`;
+    } else {
+      stockHint.textContent = '';
+      quantityHint.textContent = '';
+      quantityInput.removeAttribute('max');
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    dateNeededInput.min = todayStr;
+    if (!dateNeededInput.value || dateNeededInput.value < todayStr) {
+      dateNeededInput.value = todayStr;
+    }
+
+    const updateReturnDateMin = () => {
+      returnDateInput.min = dateNeededInput.value || todayStr;
+      if (returnDateInput.value && returnDateInput.value < returnDateInput.min) {
+        returnDateInput.value = returnDateInput.min;
+      }
+    };
+    dateNeededInput.onchange = updateReturnDateMin;
+    updateReturnDateMin();
+
+    if (!returnDateInput.value) {
+      returnDateInput.value = dateNeededInput.value;
+    }
+
+    formSection.hidden = false;
+    formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    quantityInput.focus();
+  }
+
+  function closeForm() {
+    const formSection = document.getElementById('form');
+    formSection.hidden = true;
+  }
+
+  load();
+</script>
+</body>
+</html>

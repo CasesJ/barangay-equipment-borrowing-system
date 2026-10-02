@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signup</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <style>
+    :root { --blue: #1760c9; --button: #477fe3; --ink: #061b40; --muted: #61718a; --line: #d9dce2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: Arial, Helvetica, sans-serif; color: var(--ink); background: linear-gradient(135deg, #1768d2 0%, #1256bb 100%); }
+    .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 24px; }
+    .card { width: min(100%, 412px); overflow: hidden; position: relative; background: radial-gradient(ellipse 245px 245px at -13% -8%, transparent 0 42%, rgba(102, 193, 238, .35) 42.5% 55%, transparent 55.5%), radial-gradient(ellipse 290px 260px at 111% 109%, transparent 0 38%, rgba(102, 193, 238, .35) 38.5% 51%, transparent 51.5%), #b8e3f7; border-radius: 43px; padding: 50px 30px 36px; box-shadow: 0 18px 32px rgba(2, 37, 103, .13); }
+    h1 { margin: 0 0 18px; text-align: center; font-size: 34px; line-height: 1.2; }
+    h1::after { content: "Get your free account now"; display: block; margin-top: 16px; font-size: 16px; line-height: 1.18; font-weight: 700; }
+    form { display: grid; gap: 11px; margin-top: 24px; }
+    .field { position: relative; }
+    input { width: 100%; height: 54px; padding: 0 20px; border: 0; border-radius: 15px; outline: none; color: var(--ink); background: #fff; font-size: 16px; }
+    input::placeholder { color: #99a9c1; }
+    input:focus { border-color: var(--button); box-shadow: 0 0 0 3px rgba(8, 121, 209, .12); }
+    .field input[data-password] { padding-right: 35px; }
+    .eye { position: absolute; top: 50%; right: 18px; width: 24px; height: 24px; transform: translateY(-50%); border: 0; padding: 0; background: transparent; color: #ff4d57; cursor: pointer; }
+    .eye svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+    .password-strength { display: grid; gap: 5px; margin-top: -4px; }
+    .strength-bar { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.65); }
+    .strength-bar span { display: block; width: 0; height: 100%; border-radius: inherit; transition: width .2s, background .2s; }
+    .strength-text { margin: 0 5px; font-size: 13px; font-weight: 700; color: var(--ink); }
+    .primary { height: 56px; margin-top: 7px; border: 0; border-radius: 16px; background: var(--button); color: #fff; font-size: 19px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 12px rgba(43, 101, 201, .25); }
+    .form-message { display: none; margin: 0; padding: 9px 10px; border: 1px solid #f1b7b7; border-radius: 5px; background: #fff1f1; color: #a51d1d; font-size: 11px; line-height: 1.35; }
+    .form-message.visible { display: block; }
+    .switch-line { margin: 13px 0 1px; text-align: center; font-size: 16px; font-weight: 700; color: var(--ink); }
+    a { color: #287cf1; text-decoration: none; } a:hover { text-decoration: underline; }
+    @media (max-width: 620px) { .auth-page { padding: 32px 20px; } .card { padding: 48px 30px 34px; } }
+  </style>
+</head>
+<body>
+  <main class="auth-page">
+    <article class="card" aria-label="Create an account">
+      <h1>Signup</h1>
+      <form action="/signup" method="post">
+        <p id="auth-message" class="form-message" role="alert" aria-live="assertive"></p>
+        <label class="field"><input type="text" name="full_name" placeholder="Full name" aria-label="Full name" autocomplete="name" required></label>
+        <label class="field"><input type="text" name="username" placeholder="Username" aria-label="Username" autocomplete="username" required></label>
+        <label class="field"><input type="tel" name="contact_number" placeholder="Contact number" aria-label="Contact number" autocomplete="tel" required></label>
+        <label class="field"><input type="text" name="address" placeholder="Address" aria-label="Address" autocomplete="street-address" required></label>
+        <label class="field"><input type="email" name="email" placeholder="Email" aria-label="Email" autocomplete="email" required></label>
+        <label class="field"><input id="signup-password" type="password" name="password" placeholder="Create password" aria-label="Create password" autocomplete="new-password" required data-password><button class="eye" type="button" aria-label="Show password" onclick="togglePassword(this)"><svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 4.2A10.9 10.9 0 0112 4c5.5 0 9 5.2 9 8s-1.2 3.6-2.7 4.9M6.2 6.2C4.2 7.7 3 10.1 3 12c0 2.8 3.5 8 9 8 1.1 0 2.1-.2 3-.6"/></svg></button></label>
+        <div class="password-strength" aria-live="polite">
+          <div class="strength-bar" aria-hidden="true"><span id="strength-bar"></span></div>
+          <p id="strength-text" class="strength-text">Use at least 12 characters for a strong password.</p>
+        </div>
+        <label class="field"><input type="password" name="confirm_password" placeholder="Confirm password" aria-label="Confirm password" autocomplete="new-password" required data-password><button class="eye" type="button" aria-label="Show password" onclick="togglePassword(this)"><svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 4.2A10.9 10.9 0 0112 4c5.5 0 9 5.2 9 8s-1.2 3.6-2.7 4.9M6.2 6.2C4.2 7.7 3 10.1 3 12c0 2.8 3.5 8 9 8 1.1 0 2.1-.2 3-.6"/></svg></button></label>
+        <button class="primary" type="submit">Signup</button>
+        <p class="switch-line">Already have an account? <a href="login.html">Login</a></p>
+      </form>
+    </article>
+  </main>
+  <script>
+    function togglePassword(button) { const input = button.parentElement.querySelector('input'); const show = input.type === 'password'; input.type = show ? 'text' : 'password'; button.setAttribute('aria-label', show ? 'Hide password' : 'Show password'); }
+    const passwordInput = document.getElementById('signup-password');
+    const strengthBar = document.getElementById('strength-bar');
+    const strengthText = document.getElementById('strength-text');
+    const strengthLevels = [
+      { label: 'Too short — use at least 12 characters.', width: '10%', color: '#dc2626', valid: false },
+      { label: 'Weak password.', width: '30%', color: '#ef4444', valid: false },
+      { label: 'Fair password — add more variety.', width: '55%', color: '#f59e0b', valid: false },
+      { label: 'Good password.', width: '75%', color: '#22c55e', valid: false },
+      { label: 'Strong password.', width: '100%', color: '#16a34a', valid: true }
+    ];
+    function updatePasswordStrength() {
+      const password = passwordInput.value;
+      if (!password) { strengthBar.style.width = '0'; strengthText.textContent = 'Use at least 12 characters for a strong password.'; passwordInput.setCustomValidity(''); return; }
+      let score = password.length >= 12 ? 1 : 0;
+      score += /[a-z]/.test(password) && /[A-Z]/.test(password) ? 1 : 0;
+      score += /\d/.test(password) ? 1 : 0;
+      score += /[^A-Za-z0-9]/.test(password) ? 1 : 0;
+      const level = strengthLevels[score];
+      strengthBar.style.width = level.width;
+      strengthBar.style.background = level.color;
+      strengthText.textContent = level.label;
+      passwordInput.setCustomValidity(level.valid ? '' : 'Please create a strong password with at least 12 characters, uppercase and lowercase letters, a number, and a symbol.');
+    }
+    passwordInput.addEventListener('input', updatePasswordStrength);
+    const authMessage = new URLSearchParams(window.location.search).get('message');
+    if (authMessage) { const message = document.getElementById('auth-message'); message.textContent = authMessage; message.classList.add('visible'); }
+  </script>
+</body>
+</html>
