@@ -1,6 +1,5 @@
-"""Business services and inventory/borrowing domain logic."""
-import mysql.connector
-from database import get_db_connection, table_exists
+"""Business helpers built on the Supabase Data API."""
+from database import DatabaseError, get_rows
 
 
 def compute_stock_status(total_stock, available_stock):
@@ -12,84 +11,35 @@ def compute_stock_status(total_stock, available_stock):
     return "Available"
 
 
-def has_active_equipment_loan(cursor, equipment_id):
-    """Check whether equipment is part of an active or partially returned borrowing."""
-    if not table_exists(cursor, "borrowing_items") or not table_exists(cursor, "borrowings"):
-        return False
-    cursor.execute(
-        "SELECT 1 FROM borrowing_items bi "
-        "JOIN borrowings b ON b.borrowing_id = bi.borrowing_id "
-        "WHERE bi.equipment_id = %s "
-        "  AND b.status IN ('Active', 'Partially Returned') "
-        "LIMIT 1",
-        (equipment_id,),
+def has_active_equipment_loan(equipment_id):
+    """Check active loans through Supabase table APIs."""
+    active_ids = {
+        row["borrowing_id"]
+        for row in get_rows("borrowings")
+        if row["status"] in ("Active", "Partially Returned")
+    }
+    return any(
+        item["equipment_id"] == equipment_id and item["borrowing_id"] in active_ids
+        for item in get_rows("borrowing_items")
     )
-    return cursor.fetchone() is not None
 
 
-def has_active_borrower_loan(cursor, borrower_id):
-    """Check whether a borrower has any active or partially returned borrowing transaction."""
-    if not table_exists(cursor, "borrowings"):
-        return False
-    cursor.execute(
-        "SELECT 1 FROM borrowings "
-        "WHERE borrower_id = %s AND status IN ('Active', 'Partially Returned') "
-        "LIMIT 1",
-        (borrower_id,),
+def has_active_borrower_loan(borrower_id):
+    """Check active loans through Supabase table APIs."""
+    return any(
+        row["borrower_id"] == borrower_id
+        and row["status"] in ("Active", "Partially Returned")
+        for row in get_rows("borrowings")
     )
-    return cursor.fetchone() is not None
 
 
-def validate_and_release_stock(cursor, borrowing_id):
-    """Lock borrowing items, validate stock availability, and decrement atomically.
-
-    Returns the list of (item, equipment) pairs that were released.
-    Raises ValueError or RuntimeError on validation failure.
-    """
-    cursor.execute(
-        "SELECT borrowing_item_id, equipment_id, quantity_borrowed "
-        "FROM borrowing_items WHERE borrowing_id = %s "
-        "ORDER BY equipment_id FOR UPDATE",
-        (borrowing_id,),
+def validate_and_release_stock(borrowing_id, processed_by):
+    """Release a request atomically through the Supabase RPC endpoint."""
+    from database import call_rpc
+    return call_rpc(
+        "api_release_borrowing_request",
+        {"p_borrowing_id": borrowing_id, "p_processed_by": processed_by},
     )
-    items = cursor.fetchall()
-    if not items:
-        raise ValueError("This request has no equipment items.")
-
-    equipment_rows = []
-    for item in items:
-        if item["quantity_borrowed"] <= 0:
-            raise ValueError("Requested quantity must be greater than zero.")
-        cursor.execute(
-            "SELECT equipment_name, total_stock, available_stock "
-            "FROM equipment WHERE equipment_id = %s FOR UPDATE",
-            (item["equipment_id"],),
-        )
-        equipment = cursor.fetchone()
-        if not equipment:
-            raise ValueError("One requested equipment record no longer exists.")
-        if item["quantity_borrowed"] > equipment["available_stock"]:
-            raise ValueError(
-                f"Insufficient stock for {equipment['equipment_name']}. "
-                f"Available: {equipment['available_stock']}."
-            )
-        equipment_rows.append((item, equipment))
-
-    for item, _ in equipment_rows:
-        cursor.execute(
-            "UPDATE equipment SET available_stock = available_stock - %s "
-            "WHERE equipment_id = %s AND available_stock >= %s",
-            (item["quantity_borrowed"], item["equipment_id"], item["quantity_borrowed"]),
-        )
-        if cursor.rowcount != 1:
-            raise RuntimeError("Stock changed while releasing equipment. Please try again.")
-        cursor.execute(
-            "UPDATE borrowing_items SET remaining_quantity = quantity_borrowed - quantity_returned "
-            "WHERE borrowing_item_id = %s",
-            (item["borrowing_item_id"],),
-        )
-
-    return equipment_rows
 
 
 def validate_and_return_stock(
@@ -226,32 +176,17 @@ def validate_request_reservation(cursor, equipment_id, quantity, available_stock
 
 
 def dashboard_statistics():
-    """Read dashboard totals from the existing MySQL schema."""
-    stats = {
-        "total_equipment": 0,
-        "available_equipment": 0,
-        "active_borrowings": 0,
-        "total_borrowers": 0,
-    }
+    """Calculate dashboard totals from Supabase Data API responses."""
+    stats = {"total_equipment": 0, "available_equipment": 0, "active_borrowings": 0, "total_borrowers": 0}
     try:
-        with get_db_connection() as (db, cursor):
-            cursor.execute(
-                "SELECT COUNT(*) AS total_equipment, "
-                "COALESCE(SUM(available_stock), 0) AS available_equipment "
-                "FROM equipment"
-            )
-            stats.update(cursor.fetchone())
-
-            borrower_table = "borrowers" if table_exists(cursor, "borrowers") else "users"
-            cursor.execute(f"SELECT COUNT(*) AS total_borrowers FROM {borrower_table}")
-            stats.update(cursor.fetchone())
-
-            if table_exists(cursor, "borrowings"):
-                cursor.execute(
-                    "SELECT COUNT(*) AS active_borrowings FROM borrowings "
-                    "WHERE status IN ('Active', 'Partially Returned')"
-                )
-                stats.update(cursor.fetchone())
-            return stats, True
-    except mysql.connector.Error:
+        equipment = get_rows("equipment")
+        borrowings = get_rows("borrowings")
+        stats.update(
+            total_equipment=len(equipment),
+            available_equipment=sum(row["available_stock"] for row in equipment),
+            active_borrowings=sum(row["status"] in ("Active", "Partially Returned") for row in borrowings),
+            total_borrowers=len(get_rows("borrowers")),
+        )
+        return stats, True
+    except DatabaseError:
         return stats, False

@@ -1,23 +1,36 @@
 """Authentication and general public routes."""
-import mysql.connector
-from flask import Blueprint, current_app, redirect, render_template, request, send_from_directory, session, url_for
+from flask import Blueprint, jsonify, redirect, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from auth import is_admin, is_strong_password, login_required, redirect_with_message
-from database import get_db_connection, log_audit
+from auth import frontend_redirect, is_admin, is_strong_password, login_required, redirect_with_message
+from database import DatabaseError, get_rows, insert_row, log_audit
 
 auth_bp = Blueprint("auth_routes", __name__)
+
+
+@auth_bp.get("/api/session")
+def session_details():
+    """Expose the minimum authenticated identity needed by the SPA shell."""
+    if "user_id" not in session:
+        return jsonify(authenticated=False), 401
+    return jsonify(
+        authenticated=True,
+        user_id=session["user_id"],
+        full_name=session.get("full_name", ""),
+        username=session.get("username", ""),
+        role=session.get("role", ""),
+    )
 
 
 @auth_bp.get("/")
 @auth_bp.get("/login.html")
 def login_page():
-    return send_from_directory(current_app.config["ROOT_DIR"], "login.html")
+    return frontend_redirect("/")
 
 
 @auth_bp.get("/signup.html")
 def signup_page():
-    return send_from_directory(current_app.config["ROOT_DIR"], "signup.html")
+    return frontend_redirect("/signup")
 
 
 @auth_bp.post("/signup")
@@ -41,40 +54,43 @@ def signup():
         )
 
     try:
-        with get_db_connection() as (db, cursor):
-            cursor.execute(
-                "SELECT user_id FROM users WHERE username = %s OR email = %s",
-                (username, email),
-            )
-            if cursor.fetchone():
-                return redirect_with_message("signup_page", "That username or email is already registered.")
+        if any(
+            row["username"].lower() == username.lower() or row["email"].lower() == email
+            for row in get_rows("users")
+        ):
+            return redirect_with_message("signup_page", "That username or email is already registered.")
 
-            cursor.execute(
-                "INSERT INTO users (full_name, username, password, contact_number, address, email, role, status) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (
-                    full_name,
-                    username,
-                    generate_password_hash(password),
-                    contact_number,
-                    address,
-                    email,
-                    "Staff",
-                    "Active",
-                ),
-            )
-            user_id = cursor.lastrowid
-            cursor.execute(
-                "INSERT INTO borrowers (user_id, full_name, contact_number, address, email) "
-                "VALUES (%s, %s, %s, %s, %s)",
-                (user_id, full_name, contact_number, address, email),
-            )
-            log_audit(cursor, "CREATE", "users", user_id, f"Account created for {username}")
-            db.commit()
-            return redirect_with_message("login_page", "Account created. You can now log in.")
-    except mysql.connector.Error:
+        user = insert_row(
+            "users",
+            {
+                "full_name": full_name,
+                "username": username,
+                "password": generate_password_hash(password),
+                "contact_number": contact_number,
+                "address": address,
+                "email": email,
+                "role": "User",
+                "status": "Active",
+            },
+        )
+        if not user:
+            raise DatabaseError("Supabase did not return the new user.")
+        user_id = user["user_id"]
+        insert_row(
+            "borrowers",
+            {
+                "user_id": user_id,
+                "full_name": full_name,
+                "contact_number": contact_number,
+                "address": address,
+                "email": email,
+            },
+        )
+        log_audit("CREATE", "users", user_id, f"Account created for {username}")
+        return redirect_with_message("login_page", "Account created. You can now log in.")
+    except DatabaseError:
         return redirect_with_message(
-            "signup_page", "Database connection failed. Check XAMPP MySQL and app.py settings."
+            "signup_page", "The database is unavailable. Please try again shortly."
         )
 
 
@@ -83,40 +99,43 @@ def login():
     identity = request.form.get("identity", "").strip()
     password = request.form.get("password", "")
     try:
-        with get_db_connection() as (db, cursor):
-            cursor.execute(
-                "SELECT user_id, full_name, username, password, role, status "
-                "FROM users WHERE username = %s OR email = %s",
-                (identity, identity),
-            )
-            user = cursor.fetchone()
-            if (
-                not user
-                or str(user["status"]).lower() != "active"
-                or not check_password_hash(user["password"], password)
-            ):
-                return redirect_with_message("login_page", "Invalid username/email or password.")
+        identity_lower = identity.lower()
+        user = next(
+            (
+                row
+                for row in get_rows("users")
+                if row["username"].lower() == identity_lower
+                or row["email"].lower() == identity_lower
+            ),
+            None,
+        )
+        if (
+            not user
+            or str(user["status"]).lower() != "active"
+            or not check_password_hash(user["password"], password)
+        ):
+            return redirect_with_message("login_page", "Invalid username/email or password.")
 
-            session.clear()
-            session.update(
-                user_id=user["user_id"],
-                full_name=user["full_name"],
-                username=user["username"],
-                role=user["role"],
-            )
-            if is_admin():
-                return redirect(url_for("dashboard_routes.dashboard"))
-            return redirect(url_for("dashboard_routes.staff_dashboard"))
-    except mysql.connector.Error:
+        session.clear()
+        session.update(
+            user_id=user["user_id"],
+            full_name=user["full_name"],
+            username=user["username"],
+            role=user["role"],
+        )
+        if is_admin():
+            return redirect(url_for("dashboard_routes.dashboard"))
+        return redirect(url_for("dashboard_routes.staff_dashboard"))
+    except DatabaseError:
         return redirect_with_message(
-            "login_page", "Database connection failed. Check XAMPP MySQL and app.py settings."
+            "login_page", "The database is unavailable. Please try again shortly."
         )
 
 
 @auth_bp.get("/about")
 @login_required
 def about_page():
-    return render_template("about.html", full_name=session["full_name"])
+    return frontend_redirect("/about")
 
 
 @auth_bp.get("/logout")

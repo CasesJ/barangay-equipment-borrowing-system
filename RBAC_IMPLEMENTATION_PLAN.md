@@ -4,7 +4,7 @@
 
 This document defines the planned Role-Based Access Control (RBAC) requirements for the **Barangay Equipment Borrowing System**. It is a planning document only: items described here are intended requirements and must not be interpreted as confirmation that they are already implemented.
 
-The system is planned to use a local MySQL database managed through phpMyAdmin. The existing `users` table is expected to provide two roles:
+The system uses Supabase through its Data API and transactional RPC functions. The existing `users` table provides two roles:
 
 - `Admin`
 - `Staff`
@@ -51,7 +51,7 @@ role
 
 Planned login behavior:
 
-- Retrieve the role together with the user's account record from the MySQL `users` table.
+- Retrieve the role together with the user's account record from the Supabase `users` table.
 - Store the retrieved role in the existing session structure.
 - Reuse the existing login and sign-up process; change it only where necessary to include the role in the session.
 - On logout, destroy the session, remove the stored role, and redirect the user to the sign-in page.

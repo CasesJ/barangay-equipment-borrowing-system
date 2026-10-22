@@ -16,6 +16,11 @@ def redirect_with_message(page, text):
         raise
 
 
+def frontend_redirect(path="/"):
+    """Send direct backend page visits to the Next.js frontend."""
+    return redirect(f"{current_app.config['FRONTEND_URL']}{path}")
+
+
 def is_strong_password(password):
     """Check if password satisfies 12+ chars with upper, lower, digit, and symbol."""
     if not isinstance(password, str):
@@ -76,7 +81,7 @@ def admin_api(f):
 
 
 def staff_only(f):
-    """Page guard: login + non-Admin (Staff) role required."""
+    """Page guard: login + non-Admin (User) role required."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if logged_in() and not is_admin():
@@ -88,10 +93,10 @@ def staff_only(f):
 
 
 def staff_api(f):
-    """API guard: login + non-Admin (Staff) role required (returns JSON errors)."""
+    """API guard: login + non-Admin (User) role required (returns JSON errors)."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if logged_in() and not is_admin():
             return f(*args, **kwargs)
-        return jsonify(error="Access denied: only Staff users can perform this action."), 403
+        return jsonify(error="Access denied: only User accounts can perform this action."), 403
     return decorated

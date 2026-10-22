@@ -4,7 +4,7 @@
 
 **Barangay Equipment Borrowing System**
 
-The Barangay Equipment Borrowing System is a web-based application for managing barangay-owned reusable equipment and the borrowing process. It supports two user roles: **Admin**, who manages inventory and transactions, and **Staff**, who can browse available equipment, submit borrowing requests, and monitor their own requests and borrowed items.
+The Barangay Equipment Borrowing System is a web-based application for managing barangay-owned reusable equipment and the borrowing process. It supports two user roles: **Admin**, who manages inventory and transactions, and **User**, who can browse available equipment, submit borrowing requests, and monitor their own requests and borrowed items.
 
 ## 2. Problem Statement
 
@@ -20,10 +20,10 @@ To develop a web-based system that efficiently manages barangay equipment invent
 
 ### Specific Objectives
 
-- Provide secure account registration, login, logout, and role-based access for Admin and Staff users.
+- Provide secure account registration, login, logout, and role-based access for Admin and User accounts.
 - Maintain equipment records, including name, category, quantity, unit type, and available stock.
 - Maintain borrower records with contact and address information.
-- Allow Staff users to view available equipment and submit borrowing requests with quantities, purpose, needed date, and expected return date.
+- Allow User accounts to view available equipment and submit borrowing requests with quantities, purpose, needed date, and expected return date.
 - Allow Admin users to review, approve or reject requests, release approved equipment, and record direct borrowing transactions.
 - Track active, partially returned, and completed borrowing transactions.
 - Record full or partial equipment returns and update available stock accordingly.
@@ -37,11 +37,11 @@ To develop a web-based system that efficiently manages barangay equipment invent
 | Module | Features |
 | --- | --- |
 | Authentication | Account signup, password-strength validation, login by username or email, logout, and session-based access control. |
-| Role management | Admin-only controls for inventory, borrowers, transaction processing, reports, and audit logs; Staff-only views for personal requests, borrowed items, equipment availability, and profile access. |
-| Dashboard | Displays equipment, available-stock, active-borrowing, and borrower summaries. A separate Staff dashboard displays account-related borrowing statistics. |
+| Role management | Admin-only controls for inventory, borrowers, transaction processing, reports, and audit logs; User-only views for personal requests, borrowed items, equipment availability, and profile access. |
+| Dashboard | Displays equipment, available-stock, active-borrowing, and borrower summaries. A separate User dashboard displays account-related borrowing statistics. |
 | Equipment inventory | Add, edit, delete, search, and list equipment. The system identifies available, low-stock, and out-of-stock items. |
 | Borrower management | Add, edit, view, and delete borrower records, subject to active-loan checks. |
-| Borrowing requests | Staff can submit requests. Admin can review pending requests, approve or reject them, and release approved equipment. |
+| Borrowing requests | Users can submit requests. Admin can review pending requests, approve or reject them, and release approved equipment. |
 | Borrowing transactions | Admin can create borrowing records, assign one or more equipment items, specify quantities and expected return dates, and prevent quantities from exceeding availability. |
 | Returns | Record complete or partial returns, update remaining quantities, update inventory availability, and mark completed transactions as returned. |
 | Reports | Generate equipment availability, active borrowing, returned borrowing, transaction, and borrower-history reports with filtering options. |
@@ -50,10 +50,10 @@ To develop a web-based system that efficiently manages barangay equipment invent
 ### Technical Requirements
 
 - **Application framework:** Python with Flask 3.x.
-- **Database:** MySQL, accessed through `mysql-connector-python`.
+- **Database:** Supabase, accessed through the HTTPS Data API and transactional RPC functions.
 - **Client technologies:** HTML5, CSS3, and JavaScript.
 - **Web browser:** A current browser such as Google Chrome, Microsoft Edge, Mozilla Firefox, or Safari.
-- **Server environment:** Python 3 and a running MySQL server. The included configuration defaults to a local MySQL instance and the `barangay_equipment_db` database.
+- **Server environment:** Python 3 and a Supabase project. Run the supplied SQL migrations in the Supabase SQL Editor, then set `SUPABASE_URL` and the private `SUPABASE_SECRET_KEY` in the server environment.
 
 ### Data and Security Requirements
 

@@ -41,7 +41,7 @@ def test_logged_in_and_is_admin():
         assert is_admin() is False
 
         session["user_id"] = 1
-        session["role"] = "Staff"
+        session["role"] = "User"
         assert logged_in() is True
         assert is_admin() is False
 
@@ -99,10 +99,10 @@ def test_admin_api_guard():
     assert resp.status_code == 401
     assert resp.get_json() == {"error": "Please log in first."}
 
-    # Authenticated as Staff -> 403
+    # Authenticated as User -> 403
     with client.session_transaction() as sess:
         sess["user_id"] = 5
-        sess["role"] = "Staff"
+        sess["role"] = "User"
     resp = client.get("/api/admin-data")
     assert resp.status_code == 403
     assert "Access denied" in resp.get_json()["error"]
@@ -116,7 +116,7 @@ def test_admin_api_guard():
 
 
 def test_staff_api_guard():
-    """staff_api decorator should allow Staff but return 403 for Admin or unauthenticated."""
+    """staff_api decorator should allow User but return 403 for Admin or unauthenticated."""
     app = Flask(__name__)
     app.secret_key = "test-secret"
 
@@ -138,10 +138,10 @@ def test_staff_api_guard():
     resp = client.get("/api/staff-data")
     assert resp.status_code == 403
 
-    # Authenticated as Staff -> 200
+    # Authenticated as User -> 200
     with client.session_transaction() as sess:
         sess["user_id"] = 2
-        sess["role"] = "Staff"
+        sess["role"] = "User"
     resp = client.get("/api/staff-data")
     assert resp.status_code == 200
     assert resp.get_json() == {"status": "ok"}

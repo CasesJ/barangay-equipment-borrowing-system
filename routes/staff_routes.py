@@ -1,10 +1,8 @@
 """Staff portal routes and API endpoints."""
-import mysql.connector
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, request, session
 
-from auth import redirect_with_message, staff_api, staff_only
-from database import get_db_connection, log_audit, serialize_date_fields
-from services import validate_request_reservation
+from auth import frontend_redirect, redirect_with_message, staff_api, staff_only
+from database import DatabaseError, call_rpc, get_rows, serialize_date_fields
 from validators import parse_staff_request_form
 
 staff_bp = Blueprint("staff_routes", __name__)
@@ -13,27 +11,23 @@ staff_bp = Blueprint("staff_routes", __name__)
 @staff_bp.get("/staff/equipment")
 @staff_only
 def staff_equipment_page():
-    return render_template("staff_equipment.html", full_name=session["full_name"])
+    return frontend_redirect("/staff/equipment")
 
 
 @staff_bp.get("/api/staff/equipment")
 @staff_api
 def staff_equipment_list():
     try:
-        with get_db_connection() as (db, cursor):
-            cursor.execute(
-                "SELECT equipment_id, equipment_name, category, available_stock, unit_type "
-                "FROM equipment WHERE available_stock > 0 ORDER BY equipment_name"
-            )
-            return jsonify(cursor.fetchall())
-    except mysql.connector.Error:
+        rows = [row for row in get_rows("equipment") if row["available_stock"] > 0]
+        return jsonify(sorted(rows, key=lambda row: row["equipment_name"].lower()))
+    except DatabaseError:
         return jsonify(error="Unable to load available equipment."), 500
 
 
 @staff_bp.get("/staff/requests")
 @staff_only
 def staff_requests_page():
-    return render_template("staff_requests.html", full_name=session["full_name"])
+    return frontend_redirect("/staff/requests")
 
 
 @staff_bp.get("/api/staff/requests")
@@ -41,25 +35,27 @@ def staff_requests_page():
 def staff_request_list():
     """Return only requests owned by the authenticated Staff account."""
     try:
-        with get_db_connection() as (db, cursor):
-            cursor.execute(
-                "SELECT b.borrowing_id, e.equipment_name, bi.quantity_borrowed, "
-                "  b.purpose_notes, b.date_needed, b.expected_return_date, "
-                "  b.additional_notes, b.created_at AS request_date, b.status, b.processed_by "
-                "FROM borrowers br "
-                "JOIN borrowings b ON b.borrower_id = br.borrower_id "
-                "JOIN borrowing_items bi ON bi.borrowing_id = b.borrowing_id "
-                "JOIN equipment e ON e.equipment_id = bi.equipment_id "
-                "WHERE br.user_id = %s "
-                "ORDER BY b.created_at DESC, b.borrowing_id DESC, e.equipment_name",
-                (session["user_id"],),
-            )
-            rows = serialize_date_fields(
-                cursor.fetchall(),
-                ["date_needed", "expected_return_date", "request_date"],
-            )
-            return jsonify(rows)
-    except mysql.connector.Error:
+        borrower_ids = {row["borrower_id"] for row in get_rows("borrowers") if row.get("user_id") == session["user_id"]}
+        equipment = {row["equipment_id"]: row for row in get_rows("equipment")}
+        rows = []
+        for borrowing in get_rows("borrowings"):
+            if borrowing["borrower_id"] not in borrower_ids:
+                continue
+            for item in get_rows("borrowing_items"):
+                if item["borrowing_id"] != borrowing["borrowing_id"]:
+                    continue
+                asset = equipment.get(item["equipment_id"])
+                if asset:
+                    rows.append({
+                        "borrowing_id": borrowing["borrowing_id"], "equipment_name": asset["equipment_name"],
+                        "quantity_borrowed": item["quantity_borrowed"], "purpose_notes": borrowing.get("purpose_notes"),
+                        "date_needed": borrowing.get("date_needed"), "expected_return_date": borrowing.get("expected_return_date"),
+                        "additional_notes": borrowing.get("additional_notes"), "request_date": borrowing.get("created_at"),
+                        "status": borrowing["status"], "processed_by": borrowing.get("processed_by"),
+                    })
+        rows.sort(key=lambda row: (row.get("request_date") or "", row["borrowing_id"], row["equipment_name"]), reverse=True)
+        return jsonify(serialize_date_fields(rows, ["date_needed", "expected_return_date", "request_date"]))
+    except DatabaseError:
         return jsonify(error="Unable to load your borrowing requests."), 500
 
 
@@ -79,97 +75,22 @@ def staff_request_create():
         return redirect_with_message("staff_equipment_page", str(error))
 
     try:
-        with get_db_connection() as (db, cursor):
-            db.start_transaction()
-            cursor.execute(
-                "SELECT borrower_id FROM borrowers WHERE user_id = %s FOR UPDATE",
-                (session["user_id"],),
-            )
-            borrower = cursor.fetchone()
-
-            if not borrower:
-                cursor.execute(
-                    "SELECT full_name, contact_number, address, email "
-                    "FROM users WHERE user_id = %s FOR UPDATE",
-                    (session["user_id"],),
-                )
-                user = cursor.fetchone()
-                if not user:
-                    raise ValueError("User account not found.")
-
-                # Check if there is an unlinked borrower record (matching email or full name)
-                cursor.execute(
-                    "SELECT borrower_id FROM borrowers "
-                    "WHERE user_id IS NULL AND (email = %s OR full_name = %s) "
-                    "LIMIT 1 FOR UPDATE",
-                    (user.get("email"), user.get("full_name")),
-                )
-                unlinked = cursor.fetchone()
-                if unlinked:
-                    cursor.execute(
-                        "UPDATE borrowers SET user_id = %s WHERE borrower_id = %s",
-                        (session["user_id"], unlinked["borrower_id"]),
-                    )
-                    borrower_id = unlinked["borrower_id"]
-                else:
-                    cursor.execute(
-                        "INSERT INTO borrowers (user_id, full_name, contact_number, address, email) "
-                        "VALUES (%s, %s, %s, %s, %s)",
-                        (
-                            session["user_id"],
-                            user["full_name"],
-                            user.get("contact_number") or None,
-                            user.get("address") or None,
-                            user.get("email") or None,
-                        ),
-                    )
-                    borrower_id = cursor.lastrowid
-            else:
-                borrower_id = borrower["borrower_id"]
-
-            cursor.execute(
-                "SELECT equipment_name, available_stock "
-                "FROM equipment WHERE equipment_id = %s FOR UPDATE",
-                (equipment_id,),
-            )
-            equipment = cursor.fetchone()
-            if not equipment:
-                raise ValueError("The selected equipment no longer exists.")
-            if quantity > equipment["available_stock"]:
-                raise ValueError(
-                    f"Only {equipment['available_stock']} item(s) of "
-                    f"{equipment['equipment_name']} are available."
-                )
-            validate_request_reservation(
-                cursor, equipment_id, quantity, equipment["available_stock"]
-            )
-
-            cursor.execute(
-                "INSERT INTO borrowings "
-                "(borrower_id, date_needed, expected_return_date, purpose_notes, additional_notes, status) "
-                "VALUES (%s, %s, %s, %s, %s, 'Pending')",
-                (borrower_id, date_needed, expected_return, purpose, notes or None),
-            )
-            borrowing_id = cursor.lastrowid
-            cursor.execute(
-                "INSERT INTO borrowing_items "
-                "(borrowing_id, equipment_id, quantity_borrowed, quantity_returned, remaining_quantity) "
-                "VALUES (%s, %s, %s, 0, %s)",
-                (borrowing_id, equipment_id, quantity, quantity),
-            )
-            log_audit(
-                cursor,
-                "CREATE",
-                "borrowings",
-                borrowing_id,
-                f"Submitted borrowing request #{borrowing_id}",
-            )
-            db.commit()
-            return redirect_with_message(
-                "staff_requests_page",
-                "Borrowing request submitted successfully. It is pending Admin review.",
-            )
-    except (mysql.connector.Error, ValueError) as error:
+        call_rpc(
+            "api_submit_staff_request",
+            {
+                "p_user_id": session["user_id"], "p_equipment_id": equipment_id, "p_quantity": quantity,
+                # Supabase sends RPC arguments as JSON; ``date`` objects are
+                # not JSON serializable by the HTTP client.  PostgreSQL accepts
+                # the ISO-8601 strings below as ``date`` parameters.
+                "p_date_needed": date_needed.isoformat(),
+                "p_expected_return": expected_return.isoformat(),
+                "p_purpose": purpose, "p_notes": notes or None,
+            },
+        )
+        return redirect_with_message(
+            "staff_requests_page", "Borrowing request submitted successfully. It is pending Admin review."
+        )
+    except (DatabaseError, ValueError) as error:
         return redirect_with_message(
             "staff_equipment_page",
             str(error)
@@ -181,39 +102,37 @@ def staff_request_create():
 @staff_bp.get("/staff/borrowed-items")
 @staff_only
 def staff_borrowed_items_page():
-    return render_template("staff_borrowed_items.html", full_name=session["full_name"])
+    return frontend_redirect("/staff/borrowed-items")
 
 
 @staff_bp.get("/api/staff/borrowed-items")
 @staff_api
 def staff_borrowed_items_list():
     try:
-        with get_db_connection() as (db, cursor):
-            cursor.execute(
-                "SELECT b.borrowing_id, e.equipment_name, bi.quantity_borrowed, "
-                "  bi.quantity_returned, "
-                "  GREATEST(bi.quantity_borrowed - bi.quantity_returned, 0) AS remaining_quantity, "
-                "  b.borrowed_at, b.expected_return_date, b.status "
-                "FROM borrowers br "
-                "JOIN borrowings b ON b.borrower_id = br.borrower_id "
-                "JOIN borrowing_items bi ON bi.borrowing_id = b.borrowing_id "
-                "JOIN equipment e ON e.equipment_id = bi.equipment_id "
-                "WHERE br.user_id = %s "
-                "  AND b.status IN ('Active', 'Partially Returned', 'Returned') "
-                "ORDER BY b.borrowed_at DESC, b.borrowing_id DESC",
-                (session["user_id"],),
-            )
-            return jsonify(cursor.fetchall())
-    except mysql.connector.Error:
+        borrower_ids = {row["borrower_id"] for row in get_rows("borrowers") if row.get("user_id") == session["user_id"]}
+        equipment = {row["equipment_id"]: row for row in get_rows("equipment")}
+        borrowings = {
+            row["borrowing_id"]: row for row in get_rows("borrowings")
+            if row["borrower_id"] in borrower_ids and row["status"] in ("Active", "Partially Returned", "Returned")
+        }
+        rows = []
+        for item in get_rows("borrowing_items"):
+            borrowing = borrowings.get(item["borrowing_id"])
+            asset = equipment.get(item["equipment_id"])
+            if borrowing and asset:
+                rows.append({
+                    "borrowing_id": borrowing["borrowing_id"], "equipment_name": asset["equipment_name"],
+                    "quantity_borrowed": item["quantity_borrowed"], "quantity_returned": item["quantity_returned"],
+                    "remaining_quantity": max(item["quantity_borrowed"] - item["quantity_returned"], 0),
+                    "borrowed_at": borrowing.get("borrowed_at"), "expected_return_date": borrowing.get("expected_return_date"),
+                    "status": borrowing["status"],
+                })
+        return jsonify(sorted(rows, key=lambda row: (row.get("borrowed_at") or "", row["borrowing_id"]), reverse=True))
+    except DatabaseError:
         return jsonify(error="Unable to load your borrowed items."), 500
 
 
 @staff_bp.get("/staff/profile")
 @staff_only
 def staff_profile_page():
-    return render_template(
-        "staff_profile.html",
-        full_name=session["full_name"],
-        username=session["username"],
-        role=session["role"],
-    )
+    return frontend_redirect("/staff/profile")
