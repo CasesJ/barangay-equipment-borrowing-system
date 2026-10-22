@@ -9,8 +9,8 @@ Borrowing System**. It reflects the current source code and dependency files.
 | --- | --- |
 | Python 3 | Primary programming language used to implement the server-side application logic, validation, services, and database operations. |
 | Flask 3.x | Web application framework used to create the application, register routes, manage requests and responses, render pages, and maintain sessions. |
-| MySQL | Relational database used to store user accounts, equipment records, borrowers, borrowing transactions, return records, and audit logs. |
-| `mysql-connector-python` | Python database driver used by the application to connect to MySQL and execute database queries and transactions. |
+| Supabase Postgres | Hosted PostgreSQL database used to store user accounts, equipment records, borrowers, borrowing transactions, return records, and audit logs. |
+| `supabase-py` | Official Supabase Python client used by Flask to access the HTTPS Data API and invoke transactional RPC functions. |
 | HTML5 | Markup language used to structure the system pages, forms, tables, and navigation. |
 | CSS3 | Styling technology used to create the visual layout, responsive views, tables, forms, buttons, and print-friendly reports. |
 | JavaScript (ES6) | Client-side language used for dynamic page behavior, form interaction, filtering, fetching data from API routes, and report previews. |
@@ -22,7 +22,7 @@ Borrowing System**. It reflects the current source code and dependency files.
 
 | AI Tool | Purpose in the System |
 | --- | --- |
-| No AI tool or AI model is currently integrated | The current application does not contain an AI API, machine-learning model, chatbot, recommendation engine, or automated decision-making component. Borrowing approvals, stock validation, reporting, and role checks are handled by application rules and MySQL data. |
+| No AI tool or AI model is currently integrated | The current application does not contain an AI API, machine-learning model, chatbot, recommendation engine, or automated decision-making component. Borrowing approvals, stock validation, reporting, and role checks are handled by application rules and Supabase Postgres data. |
 
 ## Important Note
 

@@ -1,9 +1,8 @@
 """Dashboard routes for Admin and Staff users."""
-import mysql.connector
 from flask import Blueprint, render_template, session
 
 from auth import admin_only, staff_only
-from database import get_db_connection
+from database import DatabaseError, get_rows
 from services import dashboard_statistics
 
 dashboard_bp = Blueprint("dashboard_routes", __name__)
@@ -35,28 +34,23 @@ def staff_dashboard():
     }
     database_connected = False
     try:
-        with get_db_connection() as (db, cursor):
-            cursor.execute(
-                "SELECT COALESCE(SUM(available_stock), 0) AS available_equipment "
-                "FROM equipment"
-            )
-            stats.update(cursor.fetchone())
-            cursor.execute(
-                "SELECT "
-                "  COUNT(DISTINCT CASE WHEN b.status = 'Pending' THEN b.borrowing_id END) AS pending_requests, "
-                "  COUNT(DISTINCT CASE WHEN b.status = 'Approved' THEN b.borrowing_id END) AS approved_requests, "
-                "  COUNT(DISTINCT CASE WHEN b.status IN ('Active', 'Partially Returned') THEN b.borrowing_id END) AS currently_borrowed, "
-                "  COALESCE(SUM(CASE WHEN b.status = 'Returned' "
-                "    THEN bi.quantity_returned ELSE 0 END), 0) AS returned_items "
-                "FROM borrowers br "
-                "JOIN borrowings b ON b.borrower_id = br.borrower_id "
-                "LEFT JOIN borrowing_items bi ON bi.borrowing_id = b.borrowing_id "
-                "WHERE br.user_id = %s",
-                (session["user_id"],),
-            )
-            stats.update({k: v or 0 for k, v in cursor.fetchone().items()})
-            database_connected = True
-    except mysql.connector.Error:
+        equipment = get_rows("equipment")
+        borrowers = {row["borrower_id"] for row in get_rows("borrowers") if row.get("user_id") == session["user_id"]}
+        borrowings = [row for row in get_rows("borrowings") if row["borrower_id"] in borrowers]
+        returned_ids = {row["borrowing_id"] for row in borrowings if row["status"] == "Returned"}
+        stats["available_equipment"] = sum(row["available_stock"] for row in equipment)
+        stats["pending_requests"] = sum(row["status"] == "Pending" for row in borrowings)
+        stats["approved_requests"] = sum(row["status"] == "Approved" for row in borrowings)
+        stats["currently_borrowed"] = sum(
+            row["status"] in ("Active", "Partially Returned") for row in borrowings
+        )
+        stats["returned_items"] = sum(
+            row["quantity_returned"]
+            for row in get_rows("borrowing_items")
+            if row["borrowing_id"] in returned_ids
+        )
+        database_connected = True
+    except DatabaseError:
         pass
 
     return render_template(

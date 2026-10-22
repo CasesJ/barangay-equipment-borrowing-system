@@ -50,10 +50,10 @@ To develop a web-based system that efficiently manages barangay equipment invent
 ### Technical Requirements
 
 - **Application framework:** Python with Flask 3.x.
-- **Database:** MySQL, accessed through `mysql-connector-python`.
+- **Database:** Supabase, accessed through the HTTPS Data API and transactional RPC functions.
 - **Client technologies:** HTML5, CSS3, and JavaScript.
 - **Web browser:** A current browser such as Google Chrome, Microsoft Edge, Mozilla Firefox, or Safari.
-- **Server environment:** Python 3 and a running MySQL server. The included configuration defaults to a local MySQL instance and the `barangay_equipment_db` database.
+- **Server environment:** Python 3 and a Supabase project. Run the supplied SQL migrations in the Supabase SQL Editor, then set `SUPABASE_URL` and the private `SUPABASE_SECRET_KEY` in the server environment.
 
 ### Data and Security Requirements
 

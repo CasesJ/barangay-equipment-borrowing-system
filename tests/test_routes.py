@@ -113,6 +113,37 @@ def test_staff_forbidden_from_admin_apis(client):
     assert "only Admin users" in resp.get_json()["error"]
 
 
+def test_staff_request_serializes_dates_for_supabase(client, monkeypatch):
+    """Staff request dates must be JSON values before calling the RPC."""
+    submitted = {}
+
+    def fake_call_rpc(name, params):
+        submitted["name"] = name
+        submitted["params"] = params
+        return {"borrowing_id": 1, "status": "Pending"}
+
+    monkeypatch.setattr("routes.staff_routes.call_rpc", fake_call_rpc)
+    with client.session_transaction() as sess:
+        sess.update(user_id=2, role="Staff", full_name="Staff User", username="staff")
+
+    resp = client.post(
+        "/staff/requests/create",
+        data={
+            "equipment_id": "1",
+            "quantity": "2",
+            "date_needed": "2026-10-22",
+            "expected_return_date": "2026-10-23",
+            "purpose_notes": "Community event",
+            "additional_notes": "",
+        },
+    )
+
+    assert resp.status_code == 302
+    assert submitted["name"] == "api_submit_staff_request"
+    assert submitted["params"]["p_date_needed"] == "2026-10-22"
+    assert submitted["params"]["p_expected_return"] == "2026-10-23"
+
+
 def test_logout(client):
     """Logout endpoint should clear session and redirect to login."""
     with client.session_transaction() as sess:

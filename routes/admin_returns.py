@@ -1,11 +1,9 @@
 """Admin routes for equipment returns processing."""
 from datetime import date
-import mysql.connector
 from flask import Blueprint, jsonify, render_template, request, session
 
 from auth import admin_api, admin_only, redirect_with_message
-from database import get_db_connection, log_audit
-from services import validate_and_return_stock
+from database import DatabaseError, call_rpc, first, get_rows
 from validators import parse_return_form
 
 admin_returns_bp = Blueprint("admin_returns_routes", __name__)
@@ -33,62 +31,42 @@ def returnable_borrowings():
     sort = request.args.get("sort", "newest")
 
     try:
-        with get_db_connection() as (db, cursor):
-            sql = (
-                "SELECT DISTINCT b.borrowing_id, b.borrowed_at, b.expected_return_date, "
-                "b.status, br.full_name "
-                "FROM borrowings b "
-                "JOIN borrowers br ON br.borrower_id = b.borrower_id "
-                "WHERE b.status IN ('Active', 'Partially Returned')"
-            )
-            values = []
-
+        borrowers = {row["borrower_id"]: row for row in get_rows("borrowers")}
+        equipment = {row["equipment_id"]: row for row in get_rows("equipment")}
+        item_names = {}
+        for item in get_rows("borrowing_items"):
+            item_names.setdefault(item["borrowing_id"], []).append(equipment.get(item["equipment_id"], {}).get("equipment_name", ""))
+        rows = []
+        for row in get_rows("borrowings"):
+            if row["status"] not in ("Active", "Partially Returned"):
+                continue
+            borrower = borrowers.get(row["borrower_id"])
+            if not borrower or (status and row["status"] != status):
+                continue
+            date_value = row.get("expected_return_date") if date_field == "expected" else row.get("borrowed_at")
+            if start_date and (date_value or "")[:10] < start_date:
+                continue
+            if end_date and (date_value or "")[:10] > end_date:
+                continue
             if search:
-                sql += (
-                    " AND (br.full_name LIKE %s "
-                    "OR CAST(b.borrowing_id AS CHAR) LIKE %s "
-                    "OR EXISTS ("
-                    "  SELECT 1 FROM borrowing_items si "
-                    "  JOIN equipment se ON se.equipment_id = si.equipment_id "
-                    "  WHERE si.borrowing_id = b.borrowing_id "
-                    "  AND se.equipment_name LIKE %s))"
-                )
-                values += [f"%{search}%"] * 3
-
-            if status:
-                sql += " AND b.status = %s"
-                values.append(status)
-
-            # Determine which date column to filter on
-            date_column_map = {
-                "expected": "DATE(b.expected_return_date)",
-                "actual": (
-                    "(SELECT MAX(rr.return_date) FROM return_records rr "
-                    "JOIN borrowing_items ri ON ri.borrowing_item_id = rr.borrowing_item_id "
-                    "WHERE ri.borrowing_id = b.borrowing_id)"
-                ),
-            }
-            column = date_column_map.get(date_field, "DATE(b.borrowed_at)")
-
-            if start_date:
-                sql += f" AND {column} >= %s"
-                values.append(start_date)
-            if end_date:
-                sql += f" AND {column} <= %s"
-                values.append(end_date)
-
-            order_map = {
-                "newest": "b.borrowed_at DESC",
-                "oldest": "b.borrowed_at",
-                "borrower": "br.full_name",
-                "status": "b.status, b.borrowed_at DESC",
-                "expected": "b.expected_return_date",
-            }
-            sql += " ORDER BY " + order_map.get(sort, "b.borrowed_at DESC")
-
-            cursor.execute(sql, values)
-            return jsonify(cursor.fetchall())
-    except mysql.connector.Error:
+                needle = search.lower()
+                if not (
+                    needle in borrower["full_name"].lower()
+                    or needle in str(row["borrowing_id"])
+                    or any(needle in name.lower() for name in item_names.get(row["borrowing_id"], []))
+                ):
+                    continue
+            rows.append({
+                "borrowing_id": row["borrowing_id"], "borrowed_at": row.get("borrowed_at"),
+                "expected_return_date": row.get("expected_return_date"), "status": row["status"],
+                "full_name": borrower["full_name"],
+            })
+        if sort == "borrower": rows.sort(key=lambda row: row["full_name"].lower())
+        elif sort == "status": rows.sort(key=lambda row: (row["status"], row.get("borrowed_at") or ""), reverse=True)
+        elif sort == "expected": rows.sort(key=lambda row: row.get("expected_return_date") or "")
+        else: rows.sort(key=lambda row: row.get("borrowed_at") or "", reverse=sort != "oldest")
+        return jsonify(rows)
+    except DatabaseError:
         return jsonify(error="Unable to load borrowing transactions."), 500
 
 
@@ -96,31 +74,23 @@ def returnable_borrowings():
 @admin_api
 def return_items(borrowing_id):
     try:
-        with get_db_connection() as (db, cursor):
-            cursor.execute(
-                "SELECT b.borrowing_id, b.borrowed_at, b.expected_return_date, "
-                "  b.status, br.full_name, br.contact_number, br.address "
-                "FROM borrowings b "
-                "JOIN borrowers br ON br.borrower_id = b.borrower_id "
-                "WHERE b.borrowing_id = %s",
-                (borrowing_id,),
-            )
-            loan = cursor.fetchone()
-            if not loan:
-                return jsonify(error="Borrowing transaction not found."), 404
-
-            cursor.execute(
-                "SELECT bi.borrowing_item_id, e.equipment_name, e.unit_type, "
-                "  bi.quantity_borrowed, bi.quantity_returned, "
-                "  GREATEST(bi.quantity_borrowed - bi.quantity_returned, 0) AS remaining_quantity "
-                "FROM borrowing_items bi "
-                "JOIN equipment e ON e.equipment_id = bi.equipment_id "
-                "WHERE bi.borrowing_id = %s ORDER BY e.equipment_name",
-                (borrowing_id,),
-            )
-            loan["items"] = cursor.fetchall()
-            return jsonify(loan)
-    except mysql.connector.Error:
+        loan = first([row for row in get_rows("borrowings") if row["borrowing_id"] == borrowing_id])
+        if not loan:
+            return jsonify(error="Borrowing transaction not found."), 404
+        borrower = first([row for row in get_rows("borrowers") if row["borrower_id"] == loan["borrower_id"]])
+        equipment = {row["equipment_id"]: row for row in get_rows("equipment")}
+        loan = dict(loan)
+        loan.update({key: borrower.get(key) for key in ("full_name", "contact_number", "address")})
+        loan["items"] = sorted([
+            {
+                "borrowing_item_id": item["borrowing_item_id"], "equipment_name": equipment[item["equipment_id"]]["equipment_name"],
+                "unit_type": equipment[item["equipment_id"]]["unit_type"], "quantity_borrowed": item["quantity_borrowed"],
+                "quantity_returned": item["quantity_returned"], "remaining_quantity": max(item["quantity_borrowed"] - item["quantity_returned"], 0),
+            }
+            for item in get_rows("borrowing_items") if item["borrowing_id"] == borrowing_id and item["equipment_id"] in equipment
+        ], key=lambda item: item["equipment_name"].lower())
+        return jsonify(loan)
+    except DatabaseError:
         return jsonify(error="Unable to load loan items."), 500
 
 
@@ -133,25 +103,17 @@ def return_save():
         return redirect_with_message("returns_page", str(error))
 
     try:
-        with get_db_connection() as (db, cursor):
-            db.start_transaction()
-            new_status = validate_and_return_stock(
-                cursor, borrowing_id, items, return_date,
-                session["user_id"], return_notes,
-            )
-            log_audit(
-                cursor,
-                "RETURN",
-                "borrowings",
-                borrowing_id,
-                f"Recorded return for transaction #{borrowing_id}; status: {new_status}",
-            )
-            db.commit()
-            return redirect_with_message(
-                "returns_page",
-                f"Return saved successfully. Transaction status: {new_status}.",
-            )
-    except (mysql.connector.Error, ValueError, RuntimeError) as error:
+        result = call_rpc(
+            "api_save_return",
+            {
+                "p_borrowing_id": borrowing_id, "p_return_date": return_date,
+                "p_items": [{"borrowing_item_id": item_id, "quantity": quantity} for item_id, quantity in items],
+                "p_received_by": session["user_id"], "p_notes": return_notes,
+            },
+        )
+        new_status = result.get("status") if isinstance(result, dict) else result[0]["status"]
+        return redirect_with_message("returns_page", f"Return saved successfully. Transaction status: {new_status}.")
+    except (DatabaseError, ValueError, RuntimeError) as error:
         return redirect_with_message(
             "returns_page",
             str(error)

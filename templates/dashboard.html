@@ -54,7 +54,7 @@
         <article class="card borrowers"><div class="card-label">Total Borrowers</div><div class="card-value">{{ stats.total_borrowers }}</div></article>
       </section>
       <section class="panel"><h3>Quick Actions</h3><div class="actions"><a class="action" href="/borrowings">New Borrowing</a><a class="action" href="/equipment">Manage Equipment</a><a class="action secondary" href="/borrowers">Manage Borrowers</a><a class="action secondary" href="/reports">View Reports</a></div></section>
-      {% if not database_connected %}<p class="notice">The database is currently unavailable. Statistics will refresh when MySQL reconnects.</p>{% endif %}
+      {% if not database_connected %}<p class="notice">The database is currently unavailable. Statistics will refresh when Supabase reconnects.</p>{% endif %}
     </main>
     <footer class="status"><span class="connection {% if not database_connected %}offline{% endif %}">● Database: {{ 'Connected' if database_connected else 'Unavailable' }}</span><span>Logged in: {{ full_name }}</span><span id="status-date"></span><span id="status-time"></span></footer>
   </div>
