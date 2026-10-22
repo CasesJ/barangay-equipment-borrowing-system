@@ -1,7 +1,7 @@
 """Staff portal routes and API endpoints."""
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, request, session
 
-from auth import redirect_with_message, staff_api, staff_only
+from auth import frontend_redirect, redirect_with_message, staff_api, staff_only
 from database import DatabaseError, call_rpc, get_rows, serialize_date_fields
 from validators import parse_staff_request_form
 
@@ -11,7 +11,7 @@ staff_bp = Blueprint("staff_routes", __name__)
 @staff_bp.get("/staff/equipment")
 @staff_only
 def staff_equipment_page():
-    return render_template("staff_equipment.html", full_name=session["full_name"])
+    return frontend_redirect("/staff/equipment")
 
 
 @staff_bp.get("/api/staff/equipment")
@@ -27,7 +27,7 @@ def staff_equipment_list():
 @staff_bp.get("/staff/requests")
 @staff_only
 def staff_requests_page():
-    return render_template("staff_requests.html", full_name=session["full_name"])
+    return frontend_redirect("/staff/requests")
 
 
 @staff_bp.get("/api/staff/requests")
@@ -102,7 +102,7 @@ def staff_request_create():
 @staff_bp.get("/staff/borrowed-items")
 @staff_only
 def staff_borrowed_items_page():
-    return render_template("staff_borrowed_items.html", full_name=session["full_name"])
+    return frontend_redirect("/staff/borrowed-items")
 
 
 @staff_bp.get("/api/staff/borrowed-items")
@@ -135,9 +135,4 @@ def staff_borrowed_items_list():
 @staff_bp.get("/staff/profile")
 @staff_only
 def staff_profile_page():
-    return render_template(
-        "staff_profile.html",
-        full_name=session["full_name"],
-        username=session["username"],
-        role=session["role"],
-    )
+    return frontend_redirect("/staff/profile")

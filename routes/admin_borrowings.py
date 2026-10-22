@@ -1,8 +1,7 @@
 """Admin routes for borrowing requests and direct loan creation."""
-from datetime import date
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, request, session
 
-from auth import admin_api, admin_only, redirect_with_message
+from auth import admin_api, admin_only, frontend_redirect, redirect_with_message
 from database import DatabaseError, call_rpc, first, get_rows, log_audit, serialize_date_fields, update_rows
 from validators import parse_borrowing_form
 
@@ -12,12 +11,7 @@ admin_borrowings_bp = Blueprint("admin_borrowings_routes", __name__)
 @admin_borrowings_bp.get("/borrowings")
 @admin_only
 def borrowings_page():
-    return render_template(
-        "borrowings.html",
-        full_name=session["full_name"],
-        role=session.get("role", ""),
-        today=date.today().isoformat(),
-    )
+    return frontend_redirect("/borrowings")
 
 
 @admin_borrowings_bp.get("/api/borrowable-equipment")
@@ -65,11 +59,7 @@ def borrowing_create():
 @admin_borrowings_bp.get("/admin/borrowing-requests")
 @admin_only
 def admin_request_review_page():
-    return render_template(
-        "admin_borrowing_requests.html",
-        full_name=session["full_name"],
-        role=session.get("role", "Admin"),
-    )
+    return frontend_redirect("/admin/borrowing-requests")
 
 
 @admin_borrowings_bp.get("/api/admin/borrowing-requests")

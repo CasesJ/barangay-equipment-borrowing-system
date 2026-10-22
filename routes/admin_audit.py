@@ -1,7 +1,7 @@
 """Admin routes for viewing system audit logs."""
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, request
 
-from auth import admin_api, admin_only
+from auth import admin_api, admin_only, frontend_redirect
 from database import DatabaseError, get_rows
 
 admin_audit_bp = Blueprint("admin_audit_routes", __name__)
@@ -10,11 +10,7 @@ admin_audit_bp = Blueprint("admin_audit_routes", __name__)
 @admin_audit_bp.get("/audit-logs")
 @admin_only
 def audit_logs_page():
-    return render_template(
-        "audit_logs.html",
-        full_name=session["full_name"],
-        role=session.get("role", ""),
-    )
+    return frontend_redirect("/audit-logs")
 
 
 @admin_audit_bp.get("/api/audit-logs")

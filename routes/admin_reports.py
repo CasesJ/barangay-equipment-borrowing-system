@@ -1,7 +1,7 @@
 """Admin routes for generating inventory and transaction reports."""
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, request
 
-from auth import admin_api, admin_only
+from auth import admin_api, admin_only, frontend_redirect
 from database import DatabaseError, get_rows
 
 admin_reports_bp = Blueprint("admin_reports_routes", __name__)
@@ -10,7 +10,7 @@ admin_reports_bp = Blueprint("admin_reports_routes", __name__)
 @admin_reports_bp.get("/reports")
 @admin_only
 def reports_page():
-    return render_template("reports.html", full_name=session["full_name"])
+    return frontend_redirect("/reports")
 
 
 @admin_reports_bp.get("/api/reports")

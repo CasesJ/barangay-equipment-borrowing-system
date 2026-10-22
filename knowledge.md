@@ -71,7 +71,7 @@ The `borrowings` status values used by the application are `Pending`, `Approved`
 
 | Area | Page | Read API |
 | --- | --- | --- |
-| Authentication | `/`, `/signup.html`, `/about` | None |
+| Authentication | `/`, `/signup`, `/about` | `/api/session` |
 | Admin dashboard | `/dashboard` | None |
 | Staff dashboard | `/staff-dashboard` | None |
 | Equipment | `/equipment` | `/api/equipment` |
@@ -95,9 +95,8 @@ The `borrowings` status values used by the application are `Pending`, `Approved`
 | `database.py` | MySQL connection context manager, audit helper, and shared status SQL. |
 | `services.py` | Stock release/return transactions, reservation checks, and dashboard metrics. |
 | `validators.py` | Server-side parsing and validation for equipment, borrowers, loans, requests, and returns. |
-| `routes/` | Modular blueprints grouped by authentication, dashboard, staff, and admin responsibility. |
-| `templates/` | HTML views for Admin and Staff portals. |
-| `static/` | CSS assets. |
+| `routes/` | Flask API, session, validation, and form-action blueprints. |
+| `frontend/` | Next.js pages, styling, and same-origin Flask API proxy. |
 | `tests/` | Route, authentication, validation, service, and return-flow tests. |
 
 ## Security and integrity notes

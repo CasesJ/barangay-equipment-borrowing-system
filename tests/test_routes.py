@@ -15,15 +15,15 @@ def client():
     return app.test_client()
 
 
-def test_public_pages_accessible(client):
-    """Public pages should respond successfully."""
-    # Root / login page
+def test_legacy_page_urls_forward_to_next_frontend(client):
+    """The API service must forward browser page URLs to the Next.js UI."""
     resp = client.get("/")
-    assert resp.status_code == 200
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/")
 
-    # Signup page
     resp = client.get("/signup.html")
-    assert resp.status_code == 200
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/signup")
 
 
 def test_admin_routes_redirect_unauthenticated(client):

@@ -1,8 +1,7 @@
 """Admin routes for equipment returns processing."""
-from datetime import date
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, request, session
 
-from auth import admin_api, admin_only, redirect_with_message
+from auth import admin_api, admin_only, frontend_redirect, redirect_with_message
 from database import DatabaseError, call_rpc, first, get_rows
 from validators import parse_return_form
 
@@ -12,12 +11,7 @@ admin_returns_bp = Blueprint("admin_returns_routes", __name__)
 @admin_returns_bp.get("/returns")
 @admin_only
 def returns_page():
-    return render_template(
-        "returns.html",
-        full_name=session["full_name"],
-        role=session.get("role", ""),
-        today=date.today().isoformat(),
-    )
+    return frontend_redirect("/returns")
 
 
 @admin_returns_bp.get("/api/returnable-borrowings")

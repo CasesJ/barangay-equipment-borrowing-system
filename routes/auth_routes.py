@@ -1,22 +1,36 @@
 """Authentication and general public routes."""
-from flask import Blueprint, current_app, redirect, render_template, request, send_from_directory, session, url_for
+from flask import Blueprint, jsonify, redirect, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from auth import is_admin, is_strong_password, login_required, redirect_with_message
+from auth import frontend_redirect, is_admin, is_strong_password, login_required, redirect_with_message
 from database import DatabaseError, get_rows, insert_row, log_audit
 
 auth_bp = Blueprint("auth_routes", __name__)
 
 
+@auth_bp.get("/api/session")
+def session_details():
+    """Expose the minimum authenticated identity needed by the SPA shell."""
+    if "user_id" not in session:
+        return jsonify(authenticated=False), 401
+    return jsonify(
+        authenticated=True,
+        user_id=session["user_id"],
+        full_name=session.get("full_name", ""),
+        username=session.get("username", ""),
+        role=session.get("role", ""),
+    )
+
+
 @auth_bp.get("/")
 @auth_bp.get("/login.html")
 def login_page():
-    return send_from_directory(current_app.config["ROOT_DIR"], "login.html")
+    return frontend_redirect("/")
 
 
 @auth_bp.get("/signup.html")
 def signup_page():
-    return send_from_directory(current_app.config["ROOT_DIR"], "signup.html")
+    return frontend_redirect("/signup")
 
 
 @auth_bp.post("/signup")
@@ -121,7 +135,7 @@ def login():
 @auth_bp.get("/about")
 @login_required
 def about_page():
-    return render_template("about.html", full_name=session["full_name"])
+    return frontend_redirect("/about")
 
 
 @auth_bp.get("/logout")

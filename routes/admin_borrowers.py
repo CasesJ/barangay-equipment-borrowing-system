@@ -1,7 +1,7 @@
 """Admin routes for borrower management."""
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, request, session
 
-from auth import admin_api, admin_only, redirect_with_message
+from auth import admin_api, admin_only, frontend_redirect, redirect_with_message
 from database import DatabaseError, call_rpc, delete_rows, first, get_rows, insert_row, log_audit, update_rows
 from services import has_active_borrower_loan
 from validators import parse_borrower_form
@@ -12,11 +12,7 @@ admin_borrowers_bp = Blueprint("admin_borrowers_routes", __name__)
 @admin_borrowers_bp.get("/borrowers")
 @admin_only
 def borrowers_page():
-    return render_template(
-        "borrowers.html",
-        full_name=session["full_name"],
-        role=session.get("role", ""),
-    )
+    return frontend_redirect("/borrowers")
 
 
 @admin_borrowers_bp.get("/api/borrowers")

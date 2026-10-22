@@ -32,7 +32,7 @@ SUPABASE_SECRET_KEY=sb_secret_...
 ```
 
 `SUPABASE_SECRET_KEY` is server-only, ignored by Git, and must never be placed
-in `login.html`, JavaScript, or a Vite build.
+in browser-delivered JavaScript, the Next.js client bundle, or any frontend build output.
 
 The supplied `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are safe
 for a future browser Supabase client, but this server-rendered Flask app does

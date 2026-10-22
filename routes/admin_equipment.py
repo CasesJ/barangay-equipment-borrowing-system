@@ -1,7 +1,7 @@
 """Admin routes for equipment management."""
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, request
 
-from auth import admin_api, admin_only, redirect_with_message
+from auth import admin_api, admin_only, frontend_redirect, redirect_with_message
 from database import DatabaseError, delete_rows, first, get_rows, insert_row, log_audit, update_rows
 from services import has_active_equipment_loan
 from validators import parse_equipment_form
@@ -12,11 +12,7 @@ admin_equipment_bp = Blueprint("admin_equipment_routes", __name__)
 @admin_equipment_bp.get("/equipment")
 @admin_only
 def equipment_page():
-    return render_template(
-        "equipment.html",
-        full_name=session["full_name"],
-        role=session.get("role", ""),
-    )
+    return frontend_redirect("/equipment")
 
 
 @admin_equipment_bp.get("/api/equipment")

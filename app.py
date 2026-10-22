@@ -1,4 +1,5 @@
 """Flask application entry point for Barangay Equipment Borrowing System."""
+import os
 from datetime import date, datetime
 
 from flask import Flask, jsonify, request
@@ -23,6 +24,14 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    if app.config["APP_ENV"] == "production":
+        if not app.config.get("SECRET_KEY"):
+            raise RuntimeError("FLASK_SECRET_KEY must be configured in production.")
+        if app.config.get("DEBUG"):
+            raise RuntimeError("FLASK_DEBUG must be disabled in production.")
+        if not app.config.get("SESSION_COOKIE_SECURE"):
+            raise RuntimeError("SESSION_COOKIE_SECURE must be enabled in production.")
+
     # Register custom JSON serializer for date/datetime
     app.json = CustomJSONProvider(app)
 
@@ -40,6 +49,11 @@ def create_app(config_class=Config):
     # Register all modular blueprints
     register_routes(app)
 
+    @app.get("/api/health")
+    def health_check():
+        """Liveness check for the hosting platform; it does not query Supabase."""
+        return jsonify(status="ok"), 200
+
     return app
 
 
@@ -50,4 +64,8 @@ ROOT = ROOT_DIR
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "5000")),
+        debug=app.config["DEBUG"],
+    )

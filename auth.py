@@ -16,6 +16,11 @@ def redirect_with_message(page, text):
         raise
 
 
+def frontend_redirect(path="/"):
+    """Send direct backend page visits to the Next.js frontend."""
+    return redirect(f"{current_app.config['FRONTEND_URL']}{path}")
+
+
 def is_strong_password(password):
     """Check if password satisfies 12+ chars with upper, lower, digit, and symbol."""
     if not isinstance(password, str):
