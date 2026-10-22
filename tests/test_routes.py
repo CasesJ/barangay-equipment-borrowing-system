@@ -157,3 +157,34 @@ def test_logout(client):
     # Verify session is cleared
     with client.session_transaction() as sess:
         assert "user_id" not in sess
+
+
+def test_signup_accepts_a_password_without_a_length_requirement(client, monkeypatch):
+    """All four character types are required, but there is no minimum length."""
+    inserted = []
+
+    monkeypatch.setattr("routes.auth_routes.get_rows", lambda table: [])
+
+    def fake_insert_row(table, values):
+        inserted.append((table, values))
+        return {"user_id": 7} if table == "users" else {"borrower_id": 4}
+
+    monkeypatch.setattr("routes.auth_routes.insert_row", fake_insert_row)
+    monkeypatch.setattr("routes.auth_routes.log_audit", lambda *args: None)
+
+    response = client.post(
+        "/signup",
+        data={
+            "full_name": "New User",
+            "username": "newuser",
+            "contact_number": "09123456789",
+            "address": "Barangay Test",
+            "email": "new@example.com",
+            "password": "Aa1!",
+            "confirm_password": "Aa1!",
+        },
+    )
+
+    assert response.status_code == 302
+    assert "Account+created" in response.headers["Location"]
+    assert [table for table, _ in inserted] == ["users", "borrowers"]

@@ -52,6 +52,12 @@ SUPABASE_URL=<your-supabase-project-url>
 SUPABASE_SECRET_KEY=<your-sb_secret-service-key>
 ```
 
+`SUPABASE_SERVICE_ROLE_KEY` is also accepted for older Supabase projects that
+still use the legacy service-role JWT. Set one private server key on the Flask
+deployment, not on the Next.js frontend deployment. If signup reports that
+account creation is unavailable, inspect the Flask deployment logs: each
+Supabase API failure is logged with its underlying cause.
+
 `/api/health` only confirms that Flask is running. It intentionally does not
 query Supabase, so a successful health check is not proof of database access.
 

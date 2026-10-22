@@ -15,7 +15,8 @@ from auth import (
 
 
 def test_is_strong_password_valid():
-    """Passwords with >=12 chars, upper, lower, digit, and symbol should pass."""
+    """Passwords with upper, lower, digit, and symbol should pass at any length."""
+    assert is_strong_password("Aa1!") is True
     assert is_strong_password("AdminSecurePass!1") is True
     assert is_strong_password("Barangay#2026Strong") is True
 

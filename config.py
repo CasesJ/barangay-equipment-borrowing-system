@@ -24,9 +24,12 @@ class Config:
     SUPABASE_URL = os.environ.get(
         "SUPABASE_URL", os.environ.get("VITE_SUPABASE_URL", "")
     )
-    # This key is used only by Flask on the server. It must be an sb_secret_*
-    # key and must never be sent to the browser.
-    SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
+    # This key is used only by Flask on the server and must never be sent to
+    # the browser. SUPABASE_SERVICE_ROLE_KEY keeps deployments using the
+    # legacy Supabase service-role key working (a common Vercel variable name).
+    SUPABASE_SECRET_KEY = os.environ.get(
+        "SUPABASE_SECRET_KEY", os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    )
     # Sessions are issued to the Vercel origin by the Next.js proxy, not to
     # the separately hosted Flask origin.
     SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "barangay_session")

@@ -34,6 +34,10 @@ SUPABASE_SECRET_KEY=sb_secret_...
 `SUPABASE_SECRET_KEY` is server-only, ignored by Git, and must never be placed
 in browser-delivered JavaScript, the Next.js client bundle, or any frontend build output.
 
+For projects still using Supabase's older JWT key, set it as
+`SUPABASE_SERVICE_ROLE_KEY` instead. This is also supported by the Flask
+backend and is commonly used as the Vercel environment-variable name.
+
 The supplied `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are safe
 for a future browser Supabase client, but this server-rendered Flask app does
 not use them for database administration. A publishable key is constrained by

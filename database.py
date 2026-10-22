@@ -3,6 +3,8 @@
 There is deliberately no direct Postgres/SQL connection in this module. All
 application data access goes through the official Supabase Python client.
 """
+import base64
+import json
 from functools import lru_cache
 
 from flask import current_app, session
@@ -11,6 +13,21 @@ from supabase import create_client
 
 class DatabaseError(RuntimeError):
     """Raised when a Supabase API operation cannot be completed."""
+
+
+def _is_private_supabase_key(key):
+    """Return whether *key* is a current secret or legacy service-role key."""
+    if key.startswith("sb_secret_"):
+        return True
+    # Older Supabase projects issue a JWT service-role key. Inspecting the
+    # untrusted payload here only identifies its intended role; Supabase still
+    # verifies its signature when the request is made.
+    try:
+        payload = key.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload)).get("role") == "service_role"
+    except (IndexError, ValueError, UnicodeDecodeError):
+        return False
 
 
 @lru_cache(maxsize=4)
@@ -24,8 +41,10 @@ def get_supabase():
     secret_key = current_app.config.get("SUPABASE_SECRET_KEY", "").strip()
     if not url or not secret_key:
         raise DatabaseError("SUPABASE_URL and SUPABASE_SECRET_KEY must be configured.")
-    if not secret_key.startswith("sb_secret_"):
-        raise DatabaseError("SUPABASE_SECRET_KEY must be a private sb_secret_ key.")
+    if not _is_private_supabase_key(secret_key):
+        raise DatabaseError(
+            "SUPABASE_SECRET_KEY must be a private sb_secret_ key or a legacy service-role key."
+        )
     try:
         return _client(url, secret_key)
     except Exception as error:
@@ -37,6 +56,7 @@ def _execute(operation):
         response = operation.execute()
         return response.data or []
     except Exception as error:
+        current_app.logger.exception("Supabase Data API request failed.")
         raise DatabaseError("Supabase could not complete the database operation.") from error
 
 

@@ -101,7 +101,7 @@ The `borrowings` status values used by the application are `Pending`, `Approved`
 
 ## Security and integrity notes
 
-- Passwords are hashed with Werkzeug; the password rule requires 12+ characters with uppercase, lowercase, number, and symbol.
+- Passwords are hashed with Werkzeug; the password rule requires uppercase, lowercase, number, and symbol characters.
 - Validate inputs on the server even when the browser also validates them.
 - Multi-step release and return actions use database transactions and row locks (`FOR UPDATE`) to avoid concurrent stock errors.
 - Use `log_audit(...)` for material state changes so the audit trail remains complete.

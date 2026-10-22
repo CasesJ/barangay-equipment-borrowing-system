@@ -58,7 +58,7 @@ To develop a web-based system that efficiently manages barangay equipment invent
 ### Data and Security Requirements
 
 - The database must contain the required tables for users, equipment, borrowers, borrowings, borrowing items, return records, and audit logs.
-- Users must provide complete registration details. Passwords require at least 12 characters and must include uppercase and lowercase letters, a number, and a symbol.
+- Users must provide complete registration details. Passwords must include uppercase and lowercase letters, a number, and a symbol.
 - Passwords are stored using password hashes rather than plain text.
 - Server-side validation is applied to essential inputs such as quantities, dates, contact details, and equipment availability.
 - Access to restricted functions is checked on the server according to the authenticated user role.

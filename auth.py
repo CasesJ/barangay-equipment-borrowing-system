@@ -22,12 +22,11 @@ def frontend_redirect(path="/"):
 
 
 def is_strong_password(password):
-    """Check if password satisfies 12+ chars with upper, lower, digit, and symbol."""
+    """Check for uppercase, lowercase, number, and symbol characters."""
     if not isinstance(password, str):
         return False
     return (
-        len(password) >= 12
-        and any(c.islower() for c in password)
+        any(c.islower() for c in password)
         and any(c.isupper() for c in password)
         and any(c.isdigit() for c in password)
         and any(not c.isalnum() for c in password)

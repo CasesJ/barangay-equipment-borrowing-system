@@ -1,5 +1,5 @@
 """Authentication and general public routes."""
-from flask import Blueprint, jsonify, redirect, request, session, url_for
+from flask import Blueprint, current_app, jsonify, redirect, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from auth import frontend_redirect, is_admin, is_strong_password, login_required, redirect_with_message
@@ -50,7 +50,7 @@ def signup():
     if not is_strong_password(password):
         return redirect_with_message(
             "signup_page",
-            "Use a strong password: 12+ characters with uppercase, lowercase, number, and symbol.",
+            "Use a password with uppercase, lowercase, number, and symbol characters.",
         )
 
     try:
@@ -89,8 +89,10 @@ def signup():
         log_audit("CREATE", "users", user_id, f"Account created for {username}")
         return redirect_with_message("login_page", "Account created. You can now log in.")
     except DatabaseError:
+        current_app.logger.exception("Account creation could not reach Supabase.")
         return redirect_with_message(
-            "signup_page", "The database is unavailable. Please try again shortly."
+            "signup_page",
+            "Account creation is temporarily unavailable. Please try again shortly.",
         )
 
 
