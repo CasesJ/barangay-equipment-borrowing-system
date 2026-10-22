@@ -46,7 +46,7 @@ Row Level Security and cannot safely replace the server credential.
 .\.venv\Scripts\python.exe app.py
 ```
 
-The initial self-signup role remains `Staff`. After the first account is
+The initial self-signup role is `User`. After the first account is
 created, promote the intended administrator from the Supabase SQL Editor:
 
 ```sql

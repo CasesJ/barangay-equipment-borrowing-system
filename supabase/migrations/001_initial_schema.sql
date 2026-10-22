@@ -9,7 +9,7 @@ create table if not exists public.users (
   contact_number text,
   address text,
   email text not null check (length(trim(email)) > 0),
-  role text not null default 'Staff' check (role in ('Admin', 'Staff')),
+  role text not null default 'User' check (role in ('Admin', 'User')),
   status text not null default 'Active' check (status in ('Active', 'Inactive')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -62,7 +62,7 @@ After both services are deployed, verify through the Vercel URL:
 1. `GET /api/proxy/api/health` returns `{"status":"ok"}`.
 2. Unauthenticated `GET /api/proxy/api/session` returns `401`.
 3. In a non-production test account, log in, refresh the page, log out, and
-   verify that Admin and Staff accounts receive only their permitted screens.
+   verify that Admin and User accounts receive only their permitted screens.
 4. Use a controlled test transaction to verify request submission, approval,
    release, return, stock updates, audit records, and reports.
 

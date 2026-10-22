@@ -1,6 +1,7 @@
 const BACKEND = process.env.FLASK_API_URL || (
   process.env.NODE_ENV === "production" ? "" : "http://127.0.0.1:5000"
 );
+const API_TIMEOUT_MS = 10_000;
 
 async function proxy(request, { params }) {
   if (!BACKEND) {
@@ -14,14 +15,28 @@ async function proxy(request, { params }) {
   const headers = new Headers(request.headers);
   headers.delete("host");
   headers.delete("connection");
-  const response = await fetch(target, {
-    method: request.method,
-    headers,
-    body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
-    redirect: "manual",
-    // Required by Node when forwarding a streaming request body.
-    duplex: "half"
-  });
+  let response;
+  try {
+    response = await fetch(target, {
+      method: request.method,
+      headers,
+      body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
+      redirect: "manual",
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      // Required by Node when forwarding a streaming request body.
+      duplex: "half"
+    });
+  } catch (error) {
+    const timedOut = error?.name === "TimeoutError";
+    return Response.json(
+      {
+        error: timedOut
+          ? "The API service took too long to respond. Please try again."
+          : "The API service is unavailable. Start the Flask backend and try again."
+      },
+      { status: timedOut ? 504 : 503 }
+    );
+  }
   const responseHeaders = new Headers(response.headers);
   responseHeaders.delete("content-encoding");
   responseHeaders.delete("content-length");

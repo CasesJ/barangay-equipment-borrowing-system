@@ -98,15 +98,15 @@ def test_admin_forbidden_from_staff_apis(client):
 
     resp = client.get("/api/staff/requests")
     assert resp.status_code == 403
-    assert "only Staff users" in resp.get_json()["error"]
+    assert "only User accounts" in resp.get_json()["error"]
 
 
 def test_staff_forbidden_from_admin_apis(client):
     """Staff users attempting to access Admin-specific APIs should receive 403 Forbidden."""
     with client.session_transaction() as sess:
         sess["user_id"] = 2
-        sess["role"] = "Staff"
-        sess["full_name"] = "Staff User"
+        sess["role"] = "User"
+        sess["full_name"] = "Portal User"
 
     resp = client.get("/api/equipment")
     assert resp.status_code == 403
@@ -124,7 +124,7 @@ def test_staff_request_serializes_dates_for_supabase(client, monkeypatch):
 
     monkeypatch.setattr("routes.staff_routes.call_rpc", fake_call_rpc)
     with client.session_transaction() as sess:
-        sess.update(user_id=2, role="Staff", full_name="Staff User", username="staff")
+        sess.update(user_id=2, role="User", full_name="Portal User", username="user")
 
     resp = client.post(
         "/staff/requests/create",

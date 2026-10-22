@@ -20,21 +20,21 @@ Default connection values are `127.0.0.1:3306`, database `barangay_equipment_db`
 
 | Role | Can do |
 | --- | --- |
-| Admin | Manage equipment and borrowers; create direct loans; review, approve, reject, cancel, and release staff requests; record returns; view reports and audit logs. |
-| Staff | Register an account, sign in, view available equipment, submit requests, monitor their own requests and borrowed items, and view their profile. |
+| Admin | Manage equipment and borrowers; create direct loans; review, approve, reject, cancel, and release user requests; record returns; view reports and audit logs. |
+| User | Register an account, sign in, view available equipment, submit requests, monitor their own requests and borrowed items, and view their profile. |
 
-New signups receive the `Staff` role and an associated borrower record. Protected pages use session-based authentication; protected API routes return JSON `401`/`403` errors where appropriate.
+New signups receive the `User` role and an associated borrower record. Protected pages use session-based authentication; protected API routes return JSON `401`/`403` errors where appropriate.
 
 ## Core workflow
 
 ```text
-Staff request: Pending -> Approved -> Active -> Partially Returned -> Returned
+User request: Pending -> Approved -> Active -> Partially Returned -> Returned
                                 -> Rejected / Cancelled
 
 Admin direct loan: Active -> Partially Returned -> Returned
 ```
 
-1. A Staff member selects available equipment and supplies quantity, purpose, needed date, and expected return date.
+1. A User selects available equipment and supplies quantity, purpose, needed date, and expected return date.
 2. The system creates a `Pending` borrowing request and reserves capacity against other pending/approved requests. Inventory stock is not reduced yet.
 3. An Admin reviews the request. Approval changes it to `Approved`; rejection or cancellation ends the request without changing stock.
 4. When equipment is physically released, an Admin releases the approved request. The system locks affected rows, verifies availability, reduces `available_stock`, and makes the transaction `Active`.
@@ -46,7 +46,7 @@ Admin-created direct loans skip the request stage: stock is checked and reduced 
 
 - `total_stock` is the owned quantity; `available_stock` is the quantity not currently released.
 - Status is derived, not stored independently: `Available` when all stock is available, `Low Stock` when some is released, and `Out of Stock` at zero availability.
-- Equipment cannot be released beyond availability. Pending and approved Staff requests are also considered when accepting a new request, preventing overbooking.
+- Equipment cannot be released beyond availability. Pending and approved User requests are also considered when accepting a new request, preventing overbooking.
 - An equipment total cannot be reduced below the quantity already borrowed.
 - Equipment and borrowers cannot be deleted while they are part of an active or partially returned loan.
 - Return quantities must be positive, belong to the selected borrowing, and not exceed the outstanding quantity. Restored availability cannot exceed total stock.

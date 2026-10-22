@@ -69,7 +69,7 @@ def signup():
                 "contact_number": contact_number,
                 "address": address,
                 "email": email,
-                "role": "Staff",
+                "role": "User",
                 "status": "Active",
             },
         )
